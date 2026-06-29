@@ -174,9 +174,9 @@ async function startBot() {
     const msg = messages[0];
     if (!msg.message) return;
 
-    // אם זו הודעה שהבוט עצמו שלח - מתעלמים מיד (מונע לופ אינסופי)
-    // לא תלוי ב-Set, כי הבוט אף פעם לא צריך להגיב לעצמו
-    if (msg.key.fromMe) return;
+    // אם זו הודעה שהבוט עצמו שלח (תשובה או שגיאה) - מתעלמים, כדי למנוע לופ אינסופי.
+    // אם זו הודעה שאתה כתבת בעצמך מהטלפון (גם היא fromMe, כי הבוט מחובר למספר שלך) - עונים כרגיל.
+    if (msg.key.fromMe && botSentMessageIds.has(msg.key.id)) return;
 
     const text =
       msg.message.conversation ||
