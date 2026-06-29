@@ -174,8 +174,9 @@ async function startBot() {
     const msg = messages[0];
     if (!msg.message) return;
 
-    // אם זו הודעה שהבוט עצמו שלח - מתעלמים (מונע לופ אינסופי)
-    if (msg.key.fromMe && botSentMessageIds.has(msg.key.id)) return;
+    // אם זו הודעה שהבוט עצמו שלח - מתעלמים מיד (מונע לופ אינסופי)
+    // לא תלוי ב-Set, כי הבוט אף פעם לא צריך להגיב לעצמו
+    if (msg.key.fromMe) return;
 
     const text =
       msg.message.conversation ||
@@ -213,9 +214,16 @@ async function startBot() {
       console.log(`📤 תשובה נשלחה`);
     } catch (err) {
       console.error("שגיאה:", err);
-      await sock.sendMessage(chatId, {
+      const sentError = await sock.sendMessage(chatId, {
         text: "מצטער, הייתה תקלה. נסה שוב 🙏",
       });
+      if (sentError?.key?.id) {
+        botSentMessageIds.add(sentError.key.id);
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
     }
   });
 }
