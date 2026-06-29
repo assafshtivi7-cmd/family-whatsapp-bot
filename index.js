@@ -63,13 +63,18 @@ app.listen(PORT, () => {
   console.log(`🌐 שרת רץ על פורט ${PORT}`);
 });
 
-// ====== זיכרון פשוט (רשימת קניות) ======
+// ====== זיכרון (רשימת קניות + עובדות קבועות + היסטוריית שיחה) ======
 const DATA_FILE = "./data.json";
+const MAX_HISTORY = 20; // כמה הודעות אחרונות לשמור בזיכרון השיחה
+
 function loadData() {
   try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
+    const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
+    if (!data.memories) data.memories = [];
+    if (!data.history) data.history = [];
+    return data;
   } catch {
-    return { shoppingList: [], reminders: [] };
+    return { shoppingList: [], reminders: [], memories: [], history: [] };
   }
 }
 function saveData(data) {
@@ -78,6 +83,15 @@ function saveData(data) {
 
 // ====== פנייה ל-Gemini ======
 async function askGemini(userMessage, context) {
+  const recentHistory = context.history
+    .map((h) => `${h.role === "user" ? "משתמש" : BOT_NAME}: ${h.text}`)
+    .join("\n");
+
+  const memoriesText =
+    context.memories.length > 0
+      ? context.memories.map((m) => `- ${m}`).join("\n")
+      : "אין עדיין עובדות שמורות";
+
   const systemPrompt = `אתה "${BOT_NAME}" - עוזר AI משפחתי בקבוצת וואטסאפ.
 אתה עוזר בניהול משק בית: רשימות קניות, תזכורות, שאלות כלליות, עזרה לילדים בשיעורים, רעיונות לארוחות ועוד.
 דבר בעברית, בצורה חמה, קצרה וברורה. אל תהיה מסורבל.
@@ -93,10 +107,24 @@ async function askGemini(userMessage, context) {
 
 מצב נוכחי - רשימת קניות: ${context.shoppingList.join(", ") || "ריקה"}
 
-אם המשתמש מבקש להוסיף/להוריד פריט מרשימת הקניות, ציין זאת בבירור בתשובה שלך כך:
+== עובדות קבועות שנתבקשת לזכור בעבר ==
+${memoriesText}
+
+== השיחה האחרונה (להקשר בלבד, אל תחזור עליה מילה במילה) ==
+${recentHistory || "(זו ההודעה הראשונה בשיחה)"}
+
+== פקודות שאתה יכול לכתוב בתשובה שלך ==
+אם המשתמש מבקש להוסיף/להוריד פריט מרשימת הקניות:
 [ADD: שם הפריט] - להוספה
 [REMOVE: שם הפריט] - להסרה
-ואז המשך עם תשובה רגילה וטבעית.`;
+
+אם המשתמש מבקש ממך באופן מפורש לזכור משהו לטווח ארוך (למשל "רובי תזכור ש...", "זכור לי ש..."):
+[REMEMBER: העובדה שצריך לזכור]
+
+אם המשתמש מבקש ממך לשכוח/למחוק עובדה ששמרת:
+[FORGET: העובדה למחיקה]
+
+תמיד תכתוב את הפקודות הרלוונטיות (אם יש), ואז המשך עם תשובה רגילה וטבעית בעברית.`;
 
   const result = await model.generateContent([
     { text: systemPrompt },
@@ -105,7 +133,7 @@ async function askGemini(userMessage, context) {
   return result.response.text();
 }
 
-// עיבוד פקודות מהתשובה של Gemini (הוספה/הסרה מרשימה)
+// עיבוד פקודות מהתשובה של Gemini (הוספה/הסרה מרשימה, זכירה/שכיחה של עובדות)
 function processCommands(text, data) {
   let cleanText = text;
 
@@ -120,6 +148,20 @@ function processCommands(text, data) {
   for (const m of removeMatches) {
     const item = m[1].trim();
     data.shoppingList = data.shoppingList.filter((i) => i !== item);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  const rememberMatches = [...text.matchAll(/\[REMEMBER:\s*([^\]]+)\]/g)];
+  for (const m of rememberMatches) {
+    const fact = m[1].trim();
+    if (!data.memories.includes(fact)) data.memories.push(fact);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  const forgetMatches = [...text.matchAll(/\[FORGET:\s*([^\]]+)\]/g)];
+  for (const m of forgetMatches) {
+    const fact = m[1].trim();
+    data.memories = data.memories.filter((f) => f !== fact);
     cleanText = cleanText.replace(m[0], "");
   }
 
@@ -213,6 +255,14 @@ async function startBot() {
       const data = loadData();
       const reply = await askGemini(text, data);
       const cleanReply = processCommands(reply, data);
+
+      // עדכון זיכרון השיחה (ההודעה של המשתמש + התשובה של הבוט)
+      data.history.push({ role: "user", text });
+      data.history.push({ role: "bot", text: cleanReply });
+      if (data.history.length > MAX_HISTORY) {
+        data.history = data.history.slice(-MAX_HISTORY);
+      }
+
       saveData(data);
 
       const sent = await sock.sendMessage(chatId, { text: cleanReply });
