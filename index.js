@@ -1,0 +1,208 @@
+// בוט משפחתי לוואטסאפ עם Gemini AI
+// ====================================
+
+const {
+  default: makeWASocket,
+  DisconnectReason,
+  useMultiFileAuthState,
+} = require("@whiskeysockets/baileys");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const qrcode = require("qrcode-terminal");
+const QRCode = require("qrcode");
+const express = require("express");
+const pino = require("pino");
+const fs = require("fs");
+
+// ====== הגדרות ======
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const BOT_NAME = process.env.BOT_NAME || "רובי";
+const PORT = process.env.PORT || 3000;
+
+if (!GEMINI_API_KEY) {
+  console.error("❌ חסר GEMINI_API_KEY במשתני הסביבה!");
+  process.exit(1);
+}
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+// ====== שרת קטן להצגת קוד QR ======
+const app = express();
+let lastQR = null;
+let connectionStatus = "מתחבר...";
+
+app.get("/", async (req, res) => {
+  if (lastQR) {
+    const qrImage = await QRCode.toDataURL(lastQR);
+    res.send(`
+      <html dir="rtl">
+        <head><meta charset="utf-8"><title>${BOT_NAME}</title></head>
+        <body style="text-align:center; font-family:sans-serif; padding:40px;">
+          <h1>📱 סרוק כדי לחבר את ${BOT_NAME}</h1>
+          <p>פתח וואטסאפ → הגדרות → מכשירים מקושרים → קישור מכשיר</p>
+          <img src="${qrImage}" style="width:300px;" />
+          <p>הדף מתעדכן אוטומטית כל 20 שניות</p>
+          <script>setTimeout(()=>location.reload(), 20000)</script>
+        </body>
+      </html>
+    `);
+  } else {
+    res.send(`
+      <html dir="rtl">
+        <body style="text-align:center; font-family:sans-serif; padding:40px;">
+          <h1>${BOT_NAME}</h1>
+          <p>סטטוס: ${connectionStatus}</p>
+          <script>setTimeout(()=>location.reload(), 5000)</script>
+        </body>
+      </html>
+    `);
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 שרת רץ על פורט ${PORT}`);
+});
+
+// ====== זיכרון פשוט (רשימת קניות) ======
+const DATA_FILE = "./data.json";
+function loadData() {
+  try {
+    return JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
+  } catch {
+    return { shoppingList: [], reminders: [] };
+  }
+}
+function saveData(data) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+// ====== פנייה ל-Gemini ======
+async function askGemini(userMessage, context) {
+  const systemPrompt = `אתה "${BOT_NAME}" - עוזר AI משפחתי בקבוצת וואטסאפ.
+אתה עוזר בניהול משק בית: רשימות קניות, תזכורות, שאלות כלליות, עזרה לילדים בשיעורים, רעיונות לארוחות ועוד.
+דבר בעברית, בצורה חמה, קצרה וברורה. אל תהיה מסורבל.
+
+== בני המשפחה שאתה מדבר איתם ==
+- אסף - אבא, ראש המשפחה
+- שירן - אמא, "המלכה של הבית" - תמיד תתייחס אליה בכבוד ובחמימות מיוחדת, כמי שמנהלת את הבית
+- ענבר - בת 17 - דבר אליה כמו למתבגרת בוגרת: ישיר, רציני יותר, בלי "מתחנף", אפשר הומור עדכני
+- איתמר - בן 15 - דבר אליו כמו למתבגר: קליל, ענייני, לא "ילדותי" אבל גם לא יותר מדי רשמי
+- שלו - בן 11 - דבר אליו בפשטות, בחיוך, במשפטים קצרים וברורים, אפשר טון משחקי יותר
+
+כשאתה לא יודע מי כותב, תענה בטון נייטרלי וחם שמתאים לכולם. אם מישהו מזדהה בשמו או שאתה יכול להבין מהתוכן מי כותב (למשל שאלת שיעורי בית = כנראה אחד הילדים), התאם את הטון בהתאם.
+
+מצב נוכחי - רשימת קניות: ${context.shoppingList.join(", ") || "ריקה"}
+
+אם המשתמש מבקש להוסיף/להוריד פריט מרשימת הקניות, ציין זאת בבירור בתשובה שלך כך:
+[ADD: שם הפריט] - להוספה
+[REMOVE: שם הפריט] - להסרה
+ואז המשך עם תשובה רגילה וטבעית.`;
+
+  const result = await model.generateContent([
+    { text: systemPrompt },
+    { text: `הודעה מהמשפחה: ${userMessage}` },
+  ]);
+  return result.response.text();
+}
+
+// עיבוד פקודות מהתשובה של Gemini (הוספה/הסרה מרשימה)
+function processCommands(text, data) {
+  let cleanText = text;
+
+  const addMatches = [...text.matchAll(/\[ADD:\s*([^\]]+)\]/g)];
+  for (const m of addMatches) {
+    const item = m[1].trim();
+    if (!data.shoppingList.includes(item)) data.shoppingList.push(item);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  const removeMatches = [...text.matchAll(/\[REMOVE:\s*([^\]]+)\]/g)];
+  for (const m of removeMatches) {
+    const item = m[1].trim();
+    data.shoppingList = data.shoppingList.filter((i) => i !== item);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  return cleanText.trim();
+}
+
+// ====== חיבור לוואטסאפ ======
+async function startBot() {
+  console.log("🔄 מתחיל להתחבר לוואטסאפ...");
+  const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
+  console.log("📂 מידע התחברות נטען, יוצר חיבור...");
+
+  const sock = makeWASocket({
+    auth: state,
+    logger: pino({ level: "info" }),
+    printQRInTerminal: false,
+  });
+  console.log("🔌 סוקט נוצר, מחכה לאירועים...");
+
+  sock.ev.on("connection.update", (update) => {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      lastQR = qr;
+      qrcode.generate(qr, { small: true });
+      console.log("📱 קוד QR חדש נוצר - היכנס לכתובת השרת כדי לסרוק");
+    }
+
+    if (connection === "close") {
+      connectionStatus = "התחברות נסגרה, מתחבר מחדש...";
+      const shouldReconnect =
+        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      if (shouldReconnect) {
+        startBot();
+      } else {
+        console.log("❌ נותקת מוואטסאפ. צריך לסרוק QR מחדש.");
+      }
+    } else if (connection === "open") {
+      lastQR = null;
+      connectionStatus = "✅ מחובר!";
+      console.log("✅ הבוט מחובר לוואטסאפ בהצלחה!");
+    }
+  });
+
+  sock.ev.on("creds.update", saveCreds);
+
+  // ====== טיפול בהודעות נכנסות ======
+  sock.ev.on("messages.upsert", async ({ messages }) => {
+    const msg = messages[0];
+    if (!msg.message || msg.key.fromMe) return;
+
+    const text =
+      msg.message.conversation ||
+      msg.message.extendedTextMessage?.text ||
+      "";
+
+    if (!text) return;
+
+    const chatId = msg.key.remoteJid;
+    const isGroup = chatId.endsWith("@g.us");
+
+    // בקבוצה - מגיב רק אם פנו אליו בשם או עם "בוט"
+    const triggerWords = [BOT_NAME, "רובי"];
+    const wasMentioned = triggerWords.some((w) => text.includes(w));
+
+    if (isGroup && !wasMentioned) return;
+
+    console.log(`📩 הודעה התקבלה: ${text}`);
+
+    try {
+      const data = loadData();
+      const reply = await askGemini(text, data);
+      const cleanReply = processCommands(reply, data);
+      saveData(data);
+
+      await sock.sendMessage(chatId, { text: cleanReply });
+      console.log(`📤 תשובה נשלחה`);
+    } catch (err) {
+      console.error("שגיאה:", err);
+      await sock.sendMessage(chatId, {
+        text: "מצטער, הייתה תקלה. נסה שוב 🙏",
+      });
+    }
+startBot().catch((err) => {
+  console.error("❌ שגיאה קריטית בהפעלת הבוט:", err);
+});
