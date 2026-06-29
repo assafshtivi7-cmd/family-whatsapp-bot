@@ -203,6 +203,9 @@ async function startBot() {
         text: "מצטער, הייתה תקלה. נסה שוב 🙏",
       });
     }
+  });
+}
+
 startBot().catch((err) => {
   console.error("❌ שגיאה קריטית בהפעלת הבוט:", err);
 });
