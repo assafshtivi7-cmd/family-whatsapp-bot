@@ -188,11 +188,24 @@ async function startBot() {
     const chatId = msg.key.remoteJid;
     const isGroup = chatId.endsWith("@g.us");
 
+    // הבוט מגיב רק בקבוצה המשפחתית - מתעלם לחלוטין מצ'אטים פרטיים
+    if (!isGroup) return;
+
+    // בודקים ששם הקבוצה הוא הקבוצה המשפחתית הנכונה (מכיל "שטווי")
+    const FAMILY_GROUP_KEYWORD = "שטווי";
+    try {
+      const groupMetadata = await sock.groupMetadata(chatId);
+      if (!groupMetadata.subject.includes(FAMILY_GROUP_KEYWORD)) return;
+    } catch (e) {
+      console.error("לא ניתן לאמת את שם הקבוצה:", e);
+      return;
+    }
+
     // בקבוצה - מגיב רק אם פנו אליו בשם או עם "בוט"
     const triggerWords = [BOT_NAME, "רובי"];
     const wasMentioned = triggerWords.some((w) => text.includes(w));
 
-    if (isGroup && !wasMentioned) return;
+    if (!wasMentioned) return;
 
     console.log(`📩 הודעה התקבלה: ${text}`);
 
