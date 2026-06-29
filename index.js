@@ -166,10 +166,16 @@ async function startBot() {
 
   sock.ev.on("creds.update", saveCreds);
 
+  // עוקב אחרי הודעות ששלח הבוט עצמו, כדי לא להגיב לעצמו (ולמנוע לופ אינסופי)
+  const botSentMessageIds = new Set();
+
   // ====== טיפול בהודעות נכנסות ======
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return;
+    if (!msg.message) return;
+
+    // אם זו הודעה שהבוט עצמו שלח - מתעלמים (מונע לופ אינסופי)
+    if (msg.key.fromMe && botSentMessageIds.has(msg.key.id)) return;
 
     const text =
       msg.message.conversation ||
@@ -195,7 +201,15 @@ async function startBot() {
       const cleanReply = processCommands(reply, data);
       saveData(data);
 
-      await sock.sendMessage(chatId, { text: cleanReply });
+      const sent = await sock.sendMessage(chatId, { text: cleanReply });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+        // ניקוי הרשימה כדי שלא תתמלא לנצח (שומר רק 50 אחרונים)
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
       console.log(`📤 תשובה נשלחה`);
     } catch (err) {
       console.error("שגיאה:", err);
