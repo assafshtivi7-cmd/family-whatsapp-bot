@@ -128,13 +128,16 @@ function processCommands(text, data) {
 
 // ====== חיבור לוואטסאפ ======
 async function startBot() {
+  console.log("🔄 מתחיל להתחבר לוואטסאפ...");
   const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
+  console.log("📂 מידע התחברות נטען, יוצר חיבור...");
 
   const sock = makeWASocket({
     auth: state,
-    logger: pino({ level: "silent" }),
+    logger: pino({ level: "info" }),
     printQRInTerminal: false,
   });
+  console.log("🔌 סוקט נוצר, מחכה לאירועים...");
 
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -200,7 +203,6 @@ async function startBot() {
         text: "מצטער, הייתה תקלה. נסה שוב 🙏",
       });
     }
-  });
-}
-
-startBot();
+startBot().catch((err) => {
+  console.error("❌ שגיאה קריטית בהפעלת הבוט:", err);
+});
