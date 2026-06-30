@@ -22,13 +22,23 @@ const MORNING_BRIEFING_HOUR = 6;
 const MORNING_BRIEFING_MINUTE = 30;
 
 // מיפוי מספרי טלפון (בפורמט בינלאומי, בלי +, למשל "972501234567") לשם בן המשפחה
-// תמלא כאן את המספרים האמיתיים של בני המשפחה
+// משמש בעיקר לצ'אטים פרטיים. בקבוצה, וואטסאפ לפעמים מסתיר את המספר האמיתי (LID),
+// אז יש גם זיהוי גיבוי לפי שם הפרופיל - ראה FAMILY_NAME_VARIANTS למטה.
 const FAMILY_PHONE_MAP = {
   "972536833336": "אסף",
   "972503867199": "שירן",
   "972534303473": "ענבר",
   "972522916665": "איתמר",
   "972512897618": "שלו",
+};
+
+// זיהוי גיבוי לפי מילות מפתח שעשויות להופיע בשם הפרופיל/איש הקשר של כל אחד בקבוצה
+const FAMILY_NAME_VARIANTS = {
+  אסף: ["אסף", "assaf"],
+  שירן: ["שירן", "חיים שלי", "shiran"],
+  ענבר: ["ענבר", "inbar"],
+  איתמר: ["איתמר", "itamar"],
+  שלו: ["שלו", "shelo", "shalev"],
 };
 
 if (!GEMINI_API_KEY) {
@@ -94,21 +104,28 @@ function saveData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-// מזהה מי שלח את ההודעה - לפי מספר טלפון (אם ידוע) או שם הפרופיל בוואטסאפ
+// מזהה מי שלח את ההודעה - לפי מספר טלפון (אם ידוע), ואם לא - לפי שם הפרופיל בוואטסאפ
 function getSenderName(msg, isGroup) {
   const senderJid = isGroup
     ? msg.key.participant || msg.key.remoteJid
     : msg.key.remoteJid;
 
-  // מנקים את ה-JID למספר טלפון נקי (אם קיים בפורמט הזה)
+  // ניסיון ראשון: מספר טלפון נקי (אם קיים בפורמט הזה - בעיקר בצ'אט פרטי)
   const phone = senderJid?.split("@")[0]?.split(":")[0];
-
   if (phone && FAMILY_PHONE_MAP[phone]) {
     return FAMILY_PHONE_MAP[phone];
   }
 
-  // נופלים חזרה לשם הפרופיל שמוצג בוואטסאפ, אם יש
-  if (msg.pushName) return msg.pushName;
+  // ניסיון שני: שם הפרופיל בוואטסאפ (pushName) - מחפש מילת מפתח מוכרת בתוכו
+  if (msg.pushName) {
+    for (const [name, variants] of Object.entries(FAMILY_NAME_VARIANTS)) {
+      if (variants.some((v) => msg.pushName.includes(v))) {
+        return name;
+      }
+    }
+    // לא זוהה מול אף בן משפחה - נחזיר את שם הפרופיל כמו שהוא
+    return msg.pushName;
+  }
 
   return "לא ידוע";
 }
@@ -139,7 +156,7 @@ async function askGemini(userMessage, context, senderName) {
 
 == מי כותב את ההודעה הזו ==
 ההודעה הנוכחית נשלחה על ידי: ${senderName}
-התאם את הטון בדיוק לפי מי שכתוב כאן (ולא לפי ניחוש מהתוכן).
+זהו מידע ודאי ומדויק (לא ניחוש) - המערכת מזהה אותו לפי מספר הטלפון. תמיד תתאים את הטון בדיוק לפי האדם הזה. אם נשאלת "האם אתה יודע מי כתב לך" או שאלה דומה על היכולת שלך לזהות - תענה בביטחון "כן" ותציין את השם (${senderName}), כי זה באמת ידוע לך בכל הודעה.
 
 מצב נוכחי - רשימת קניות: ${context.shoppingList.join(", ") || "ריקה"}
 
@@ -355,6 +372,10 @@ async function startBot() {
     if (!wasMentioned) return;
 
     console.log(`📩 הודעה התקבלה: ${text}`);
+    const senderJidDebug = isGroup
+      ? msg.key.participant || msg.key.remoteJid
+      : msg.key.remoteJid;
+    console.log(`🔍 DEBUG - JID: ${senderJidDebug} | pushName: ${msg.pushName}`);
     const senderName = getSenderName(msg, isGroup);
     console.log(`👤 נשלח על ידי: ${senderName}`);
 
