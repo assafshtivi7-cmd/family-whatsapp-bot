@@ -17,6 +17,19 @@ const fs = require("fs");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const BOT_NAME = process.env.BOT_NAME || "רובי";
 const PORT = process.env.PORT || 3000;
+const FAMILY_GROUP_KEYWORD = "שטווי"; // מילה מזהה בשם הקבוצה המשפחתית
+const MORNING_BRIEFING_HOUR = 6;
+const MORNING_BRIEFING_MINUTE = 30;
+
+// מיפוי מספרי טלפון (בפורמט בינלאומי, בלי +, למשל "972501234567") לשם בן המשפחה
+// תמלא כאן את המספרים האמיתיים של בני המשפחה
+const FAMILY_PHONE_MAP = {
+  "972536833336": "אסף",
+  "972503867199": "שירן",
+  "972534303473": "ענבר",
+  "972522916665": "איתמר",
+  "972512897618": "שלו",
+};
 
 if (!GEMINI_API_KEY) {
   console.error("❌ חסר GEMINI_API_KEY במשתני הסביבה!");
@@ -81,8 +94,25 @@ function saveData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-// ====== פנייה ל-Gemini ======
-async function askGemini(userMessage, context) {
+// מזהה מי שלח את ההודעה - לפי מספר טלפון (אם ידוע) או שם הפרופיל בוואטסאפ
+function getSenderName(msg, isGroup) {
+  const senderJid = isGroup
+    ? msg.key.participant || msg.key.remoteJid
+    : msg.key.remoteJid;
+
+  // מנקים את ה-JID למספר טלפון נקי (אם קיים בפורמט הזה)
+  const phone = senderJid?.split("@")[0]?.split(":")[0];
+
+  if (phone && FAMILY_PHONE_MAP[phone]) {
+    return FAMILY_PHONE_MAP[phone];
+  }
+
+  // נופלים חזרה לשם הפרופיל שמוצג בוואטסאפ, אם יש
+  if (msg.pushName) return msg.pushName;
+
+  return "לא ידוע";
+}
+async function askGemini(userMessage, context, senderName) {
   const recentHistory = context.history
     .map((h) => `${h.role === "user" ? "משתמש" : BOT_NAME}: ${h.text}`)
     .join("\n");
@@ -106,6 +136,10 @@ async function askGemini(userMessage, context) {
 - שלו - בן 11 - דבר אליו בפשטות, בחיוך, במשפטים קצרים וברורים, אפשר טון משחקי יותר
 
 כשאתה לא יודע מי כותב, תענה בטון נייטרלי וחם שמתאים לכולם. אם מישהו מזדהה בשמו או שאתה יכול להבין מהתוכן מי כותב (למשל שאלת שיעורי בית = כנראה אחד הילדים), התאם את הטון בהתאם.
+
+== מי כותב את ההודעה הזו ==
+ההודעה הנוכחית נשלחה על ידי: ${senderName}
+התאם את הטון בדיוק לפי מי שכתוב כאן (ולא לפי ניחוש מהתוכן).
 
 מצב נוכחי - רשימת קניות: ${context.shoppingList.join(", ") || "ריקה"}
 
@@ -183,6 +217,7 @@ async function startBot() {
     auth: state,
     logger: pino({ level: "info" }),
     printQRInTerminal: false,
+    markOnlineOnConnect: false, // כדי שתמשיך לקבל צלילי התראה רגילים בטלפון
   });
   console.log("🔌 סוקט נוצר, מחכה לאירועים...");
 
@@ -208,6 +243,7 @@ async function startBot() {
       lastQR = null;
       connectionStatus = "✅ מחובר!";
       console.log("✅ הבוט מחובר לוואטסאפ בהצלחה!");
+      findFamilyGroupId();
     }
   });
 
@@ -215,6 +251,71 @@ async function startBot() {
 
   // עוקב אחרי הודעות ששלח הבוט עצמו, כדי לא להגיב לעצמו (ולמנוע לופ אינסופי)
   const botSentMessageIds = new Set();
+
+  // ====== תדריך בוקר יומי לקבוצה המשפחתית ======
+  let familyGroupId = null;
+  let lastBriefingDate = null;
+
+  async function findFamilyGroupId() {
+    try {
+      const groups = await sock.groupFetchAllParticipating();
+      for (const id in groups) {
+        if (groups[id].subject.includes(FAMILY_GROUP_KEYWORD)) {
+          familyGroupId = id;
+          console.log(`👨‍👩‍👧‍👦 נמצאה הקבוצה המשפחתית: ${groups[id].subject}`);
+          return;
+        }
+      }
+      console.log("⚠️ לא נמצאה קבוצה משפחתית עם המילה:", FAMILY_GROUP_KEYWORD);
+    } catch (e) {
+      console.error("שגיאה באיתור הקבוצה המשפחתית:", e);
+    }
+  }
+
+  async function sendMorningBriefing() {
+    if (!familyGroupId) {
+      console.log("⚠️ לא ניתן לשלוח תדריך בוקר - הקבוצה המשפחתית לא נמצאה");
+      return;
+    }
+    try {
+      const data = loadData();
+      const prompt = `כתוב תדריך בוקר קצר וחם למשפחה, שיישלח כהודעה אחת בקבוצת הוואטסאפ המשפחתית. כלול:
+1) פתיחה חמה של "בוקר טוב" עם תאריך היום.
+2) משפט מוטיבציה קצר אחד שמתאים אישית לכל אחד מבני המשפחה (אסף, שירן, ענבר, איתמר, שלו) בהתאם לאופי שמתואר לך.
+3) הצעה אחת קטנה וקונקרטית לפעילות משפחתית נחמדה לעשות היום או בקרוב (משהו קליל, לא יקר, מתאים לכולם).
+תשובה קצרה וחמה, מקסימום 10-12 שורות בסך הכל, בעברית.`;
+
+      const reply = await askGemini(prompt, data, "המערכת (תדריך בוקר אוטומטי)");
+      const cleanReply = processCommands(reply, data);
+      saveData(data);
+
+      const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
+      console.log("☀️ תדריך בוקר נשלח לקבוצה המשפחתית");
+    } catch (err) {
+      console.error("שגיאה בשליחת תדריך בוקר:", err);
+    }
+  }
+
+  // בודק כל דקה אם הגיע הזמן לשלוח את תדריך הבוקר (פעם אחת ביום)
+  setInterval(() => {
+    const now = new Date();
+    const todayStr = now.toDateString();
+    if (
+      now.getHours() === MORNING_BRIEFING_HOUR &&
+      now.getMinutes() === MORNING_BRIEFING_MINUTE &&
+      lastBriefingDate !== todayStr
+    ) {
+      lastBriefingDate = todayStr;
+      sendMorningBriefing();
+    }
+  }, 60 * 1000);
 
   // ====== טיפול בהודעות נכנסות ======
   sock.ev.on("messages.upsert", async ({ messages }) => {
@@ -239,7 +340,6 @@ async function startBot() {
     if (!isGroup) return;
 
     // בודקים ששם הקבוצה הוא הקבוצה המשפחתית הנכונה (מכיל "שטווי")
-    const FAMILY_GROUP_KEYWORD = "שטווי";
     try {
       const groupMetadata = await sock.groupMetadata(chatId);
       if (!groupMetadata.subject.includes(FAMILY_GROUP_KEYWORD)) return;
@@ -255,14 +355,16 @@ async function startBot() {
     if (!wasMentioned) return;
 
     console.log(`📩 הודעה התקבלה: ${text}`);
+    const senderName = getSenderName(msg, isGroup);
+    console.log(`👤 נשלח על ידי: ${senderName}`);
 
     try {
       const data = loadData();
-      const reply = await askGemini(text, data);
+      const reply = await askGemini(text, data, senderName);
       const cleanReply = processCommands(reply, data);
 
       // עדכון זיכרון השיחה (ההודעה של המשתמש + התשובה של הבוט)
-      data.history.push({ role: "user", text });
+      data.history.push({ role: "user", text: `${senderName}: ${text}` });
       data.history.push({ role: "bot", text: cleanReply });
       if (data.history.length > MAX_HISTORY) {
         data.history = data.history.slice(-MAX_HISTORY);
