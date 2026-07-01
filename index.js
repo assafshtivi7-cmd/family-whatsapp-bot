@@ -23,6 +23,7 @@ const MORNING_BRIEFING_HOUR = 6;
 const MORNING_BRIEFING_MINUTE = 30;
 const EVENING_SUMMARY_HOUR = 21;
 const EVENING_SUMMARY_MINUTE = 0;
+const DOG_WALK_HOURS = [13, 16]; // שעות תזכורת הורדת מקס
 
 // מיפוי מספרי טלפון (בפורמט בינלאומי, בלי +, למשל "972501234567") לשם בן המשפחה
 // משמש בעיקר לצ'אטים פרטיים. בקבוצה, וואטסאפ לפעמים מסתיר את המספר האמיתי (LID),
@@ -108,26 +109,28 @@ function saveData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-// מזהה מי שלח את ההודעה - לפי מספר טלפון (אם ידוע), ואם לא - לפי שם הפרופיל בוואטסאפ
+// מזהה מי שלח את ההודעה
 function getSenderName(msg, isGroup) {
+  // אם ההודעה נשלחה מהמכשיר עצמו (fromMe) - זה תמיד אסף, כי הבוט מחובר לטלפון שלו
+  if (msg.key.fromMe) return "אסף";
+
   const senderJid = isGroup
     ? msg.key.participant || msg.key.remoteJid
     : msg.key.remoteJid;
 
-  // ניסיון ראשון: מספר טלפון נקי (אם קיים בפורמט הזה - בעיקר בצ'אט פרטי)
+  // ניסיון ראשון: מספר טלפון נקי (בעיקר בצ'אט פרטי)
   const phone = senderJid?.split("@")[0]?.split(":")[0];
   if (phone && FAMILY_PHONE_MAP[phone]) {
     return FAMILY_PHONE_MAP[phone];
   }
 
-  // ניסיון שני: שם הפרופיל בוואטסאפ (pushName) - מחפש מילת מפתח מוכרת בתוכו
+  // ניסיון שני: שם הפרופיל בוואטסאפ (pushName)
   if (msg.pushName) {
     for (const [name, variants] of Object.entries(FAMILY_NAME_VARIANTS)) {
       if (variants.some((v) => msg.pushName.includes(v))) {
         return name;
       }
     }
-    // לא זוהה מול אף בן משפחה - נחזיר את שם הפרופיל כמו שהוא
     return msg.pushName;
   }
 
@@ -372,8 +375,9 @@ ${logText}
 כתוב סיכום ערב קצר ומצחיק לקבוצה המשפחתית. 
 - התייחס לכל מי שהשתתף היום בשם (אסף, שירן, ענבר, איתמר, שלו) עם תגובה הומוריסטית קלילה על מה שהם אמרו/ביקשו
 - אם מישהו לא דיבר היום - ציין את זה בשנינות (למשל "ענבר שמרה על שקט מסתורי היום")
+- חפש בגוגל את תחזית מזג האוויר למחר באזור השרון/פתח תקווה ישראל והוסף שורה אחת קצרה עם מה לצפות מחר
 - סיים עם משפט ערב טוב חם לכל המשפחה
-- מקסימום 12 שורות, עברית, טון קליל ומשפחתי`;
+- מקסימום 14 שורות, עברית, טון קליל ומשפחתי`;
 
       const reply = await askGemini(prompt, data, "המערכת (סיכום ערב אוטומטי)");
       const cleanReply = processCommands(reply, data);
@@ -396,7 +400,37 @@ ${logText}
     }
   }
 
-  // בודק כל דקה אם הגיע הזמן לשלוח תדריך בוקר או סיכום ערב
+  // תזכורות הורדת מקס הכלב - בשעות קבועות
+  const dogWalkMessages = [
+    "🐕 היי חבר'ה! מקס כבר מסתכל עליכם עם עיניים של 'מתי יוצאים?!' תורו של מישהו להוריד אותו! 🦮",
+    "🐶 עדכון דחוף מהמרפסת: מקס החזיק יש לו פגישה דחופה עם עמוד החשמל בחוץ. מישהו יכול לעזור לו? 😂🐾",
+  ];
+  let dogWalkSentToday = {};
+
+  async function sendDogWalkReminder(hour) {
+    if (!familyGroupId) return;
+    const todayStr = new Date().toDateString();
+    if (dogWalkSentToday[hour] === todayStr) return;
+    dogWalkSentToday[hour] = todayStr;
+
+    try {
+      const msgIndex = DOG_WALK_HOURS.indexOf(hour);
+      const text = dogWalkMessages[msgIndex] || dogWalkMessages[0];
+      const sent = await sock.sendMessage(familyGroupId, { text });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
+      console.log(`🐕 תזכורת מקס נשלחה בשעה ${hour}:00`);
+    } catch (err) {
+      console.error("שגיאה בשליחת תזכורת מקס:", err);
+    }
+  }
+
+  // בודק כל דקה אם הגיע הזמן לשלוח תדריך בוקר, סיכום ערב או תזכורת מקס
   let lastSummaryDate = null;
   setInterval(() => {
     const now = new Date();
@@ -412,6 +446,11 @@ ${logText}
     if (h === EVENING_SUMMARY_HOUR && m === EVENING_SUMMARY_MINUTE && lastSummaryDate !== todayStr) {
       lastSummaryDate = todayStr;
       sendEveningSummary();
+    }
+
+    // תזכורות מקס ב-13:00 וב-16:00
+    if (m === 0 && DOG_WALK_HOURS.includes(h)) {
+      sendDogWalkReminder(h);
     }
   }, 60 * 1000);
 
