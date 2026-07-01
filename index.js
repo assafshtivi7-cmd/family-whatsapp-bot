@@ -1,4 +1,4 @@
-0// בוט משפחתי לוואטסאפ עם Gemini AI
+// בוט משפחתי לוואטסאפ עם Gemini AI
 // ====================================
 
 const {
@@ -24,6 +24,11 @@ const MORNING_BRIEFING_MINUTE = 30;
 const EVENING_SUMMARY_HOUR = 21;
 const EVENING_SUMMARY_MINUTE = 0;
 const DOG_WALK_HOURS = [13, 16]; // שעות תזכורת הורדת מקס
+const NOON_CHAT_HOUR = 12; // שעת השיחה היומית הקלילה
+const NOON_CHAT_MINUTE = 0;
+const WEEKLY_SUMMARY_DAY = 5; // יום שישי (0=ראשון, 5=שישי)
+const WEEKLY_SUMMARY_HOUR = 14;
+const WEEKLY_SUMMARY_MINUTE = 0;
 
 // מיפוי מספרי טלפון (בפורמט בינלאומי, בלי +, למשל "972501234567") לשם בן המשפחה
 // משמש בעיקר לצ'אטים פרטיים. בקבוצה, וואטסאפ לפעמים מסתיר את המספר האמיתי (LID),
@@ -101,9 +106,14 @@ function loadData() {
     if (!data.history) data.history = [];
     if (!data.dailyLog) data.dailyLog = [];
     if (!data.scheduledReminders) data.scheduledReminders = [];
+    if (!data.weeklyLog) data.weeklyLog = [];
+    if (!data.events) data.events = [];
     return data;
   } catch {
-    return { shoppingList: [], reminders: [], memories: [], history: [], dailyLog: [], scheduledReminders: [] };
+    return {
+      shoppingList: [], reminders: [], memories: [], history: [],
+      dailyLog: [], scheduledReminders: [], weeklyLog: [], events: [],
+    };
   }
 }
 function saveData(data) {
@@ -189,6 +199,10 @@ ${recentHistory || "(זו ההודעה הראשונה בשיחה)"}
 [REMIND: 17:00 | לאסוף את שלו]
 (תמיד בפורמט HH:MM ואחרי | את תוכן התזכורת. אם לא צוינה שעה מפורשת, שאל מה השעה הרצויה)
 
+אם המשתמש מספר על אירוע קרוב או מבקש להוסיף אירוע לשבוע (למשל "יש לנו אסיפת הורים ביום שלישי", "רובי תוסיף שיש לאיתמר מבחן בחמישי"):
+[EVENT: היום/התאריך | תיאור האירוע]
+לדוגמה: [EVENT: יום שלישי | אסיפת הורים בבית ספר של שלו]
+
 תמיד תכתוב את הפקודות הרלוונטיות (אם יש), ואז המשך עם תשובה רגילה וטבעית בעברית.`;
 
   const result = await model.generateContent({
@@ -249,6 +263,17 @@ function processCommands(text, data) {
     if (!data.scheduledReminders) data.scheduledReminders = [];
     data.scheduledReminders.push(reminder);
     console.log(`⏰ תזכורת נשמרה: ${time} - ${content}`);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // אירועים שבועיים - פורמט: [EVENT: יום | תיאור]
+  const eventMatches = [...text.matchAll(/\[EVENT:\s*([^|]+)\|\s*([^\]]+)\]/g)];
+  for (const m of eventMatches) {
+    const day = m[1].trim();
+    const desc = m[2].trim();
+    if (!data.events) data.events = [];
+    data.events.push({ day, desc, addedAt: new Date().toDateString() });
+    console.log(`📅 אירוע נשמר: ${day} - ${desc}`);
     cleanText = cleanText.replace(m[0], "");
   }
 
@@ -454,8 +479,135 @@ ${logText}
     }
   }
 
+  // ====== שיחה יומית קלילה בצהריים ======
+  async function sendNoonChat() {
+    if (!familyGroupId) return;
+    try {
+      const data = loadData();
+      const prompt = `כתוב הודעה קצרה, קלילה ומשעשעת לקבוצת המשפחה בצהריים. 
+המטרה: לעורר קצת שיחה ולהזכיר למשפחה שאתה (רובי) כאן וזמין. 
+אפשרויות (בחר אחת באקראי כל פעם): שאלה קלילה ליום ("מה אכלתם לצהריים?"), טיפ קטן, עובדה מעניינת, או הצעה קטנה. 
+תהיה חם, קליל ולא מעיק. מקסימום 3-4 שורות, עברית. אל תשתמש בפורמט של רשימה.`;
+
+      const reply = await askGemini(prompt, data, "המערכת (שיחת צהריים אוטומטית)");
+      const cleanReply = processCommands(reply, data);
+      saveData(data);
+
+      const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
+      console.log("☀️ שיחת צהריים נשלחה");
+    } catch (err) {
+      console.error("שגיאה בשליחת שיחת צהריים:", err);
+    }
+  }
+
+  // ====== סיכום שבועי בשישי ======
+  async function sendWeeklySummary() {
+    if (!familyGroupId) return;
+    try {
+      const data = loadData();
+      const weekLog = data.weeklyLog || [];
+      const events = data.events || [];
+
+      const logText = weekLog.length > 0
+        ? weekLog.map((e) => `${e.sender}: ${e.text}`).join("\n")
+        : "לא נרשמה פעילות מיוחדת השבוע";
+
+      const eventsText = events.length > 0
+        ? events.map((e) => `${e.day}: ${e.desc}`).join("\n")
+        : "לא נרשמו אירועים";
+
+      const prompt = `הנה פעילות המשפחה מהשבוע האחרון:
+
+== הודעות השבוע ==
+${logText}
+
+== אירועים שנרשמו ==
+${eventsText}
+
+כתוב סיכום שבועי הומוריסטי וחם לקבוצת המשפחה. 
+- סקור בקצרה ובהומור מה קרה השבוע ומי היה הכי פעיל
+- תן "פרס" מצחיק לכל אחד מבני המשפחה על משהו (למשל "פרס הכי הרבה בקשות קניות")
+- הזכר אירועים חשובים שמתקרבים
+- אחל שבת שלום וסוף שבוע נעים
+- מקסימום 15 שורות, עברית, טון קליל ומשפחתי`;
+
+      const reply = await askGemini(prompt, data, "המערכת (סיכום שבועי אוטומטי)");
+      const cleanReply = processCommands(reply, data);
+
+      // איפוס יומן שבועי ואירועים ישנים לאחר הסיכום
+      data.weeklyLog = [];
+      data.events = [];
+      saveData(data);
+
+      const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
+      console.log("📅 סיכום שבועי נשלח");
+    } catch (err) {
+      console.error("שגיאה בשליחת סיכום שבועי:", err);
+    }
+  }
+
+  // ====== חידון משפחתי ======
+  let activeQuiz = null; // { question, answer, askedAt }
+
+  async function startQuiz(chatId) {
+    try {
+      const result = await model.generateContent({
+        contents: [{
+          role: "user",
+          parts: [{ text: `צור חידה או שאלת טריוויה אחת בעברית, מתאימה למשפחה (גילאים 11-50). 
+החזר בדיוק בפורמט JSON הזה בלבד, בלי שום טקסט נוסף:
+{"question": "השאלה כאן", "answer": "התשובה הקצרה כאן"}` }],
+        }],
+      });
+      let raw = result.response.text().replace(/```json|```/g, "").trim();
+      const quiz = JSON.parse(raw);
+      activeQuiz = { question: quiz.question, answer: quiz.answer.toLowerCase(), askedAt: Date.now() };
+
+      const text = `🎮 חידון משפחתי!\n\n❓ ${quiz.question}\n\nמי יודע? כתבו את התשובה! (רמז: כתבו "רובי" עם התשובה)`;
+      const sent = await sock.sendMessage(chatId, { text });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+      }
+      console.log(`🎮 חידון התחיל: ${quiz.question}`);
+    } catch (err) {
+      console.error("שגיאה בהתחלת חידון:", err);
+      await sock.sendMessage(chatId, { text: "אופס, לא הצלחתי ליצור חידה כרגע 😅 נסו שוב!" });
+    }
+  }
+
+  // בודק אם הודעה היא תשובה נכונה לחידון פעיל
+  async function checkQuizAnswer(text, senderName, chatId) {
+    if (!activeQuiz) return false;
+    const cleaned = text.toLowerCase();
+    if (cleaned.includes(activeQuiz.answer)) {
+      const winMsg = `🎉 כל הכבוד ${senderName}! תשובה נכונה: "${activeQuiz.answer}"! 🏆`;
+      const sent = await sock.sendMessage(chatId, { text: winMsg });
+      if (sent?.key?.id) botSentMessageIds.add(sent.key.id);
+      console.log(`🏆 ${senderName} ענה נכון בחידון`);
+      activeQuiz = null;
+      return true;
+    }
+    return false;
+  }
+
   // בודק כל דקה אם הגיע הזמן לשלוח תדריך בוקר, סיכום ערב, תזכורת מקס, או תזכורת מתוזמנת
   let lastSummaryDate = null;
+  let lastNoonChatDate = null;
+  let lastWeeklySummaryDate = null;
   setInterval(async () => {
     const now = new Date();
     const todayStr = now.toDateString();
@@ -475,6 +627,23 @@ ${logText}
     // תזכורות מקס ב-13:00 וב-16:00
     if (m === 0 && DOG_WALK_HOURS.includes(h)) {
       sendDogWalkReminder(h);
+    }
+
+    // שיחת צהריים קלילה
+    if (h === NOON_CHAT_HOUR && m === NOON_CHAT_MINUTE && lastNoonChatDate !== todayStr) {
+      lastNoonChatDate = todayStr;
+      sendNoonChat();
+    }
+
+    // סיכום שבועי בשישי ב-14:00
+    if (
+      now.getDay() === WEEKLY_SUMMARY_DAY &&
+      h === WEEKLY_SUMMARY_HOUR &&
+      m === WEEKLY_SUMMARY_MINUTE &&
+      lastWeeklySummaryDate !== todayStr
+    ) {
+      lastWeeklySummaryDate = todayStr;
+      sendWeeklySummary();
     }
 
     // בדיקת תזכורות מתוזמנות שהמשפחה ביקשה
@@ -586,15 +755,16 @@ ${logText}
 
     // ====== טיפול בהודעת טקסט ======
 
-    // שמירה ביומן היומי (כל הודעה בקבוצה, לא רק מי שפונה לרובי)
+    // שמירה ביומן היומי והשבועי (כל הודעה בקבוצה, לא רק מי שפונה לרובי)
     try {
       const dataForLog = loadData();
       dataForLog.dailyLog.push({ sender: senderName, text });
-      // מגבילים את היומן ל-100 הודעות כדי לא לתפוח
       if (dataForLog.dailyLog.length > 100) dataForLog.dailyLog = dataForLog.dailyLog.slice(-100);
+      dataForLog.weeklyLog.push({ sender: senderName, text });
+      if (dataForLog.weeklyLog.length > 300) dataForLog.weeklyLog = dataForLog.weeklyLog.slice(-300);
       saveData(dataForLog);
     } catch (e) {
-      console.error("שגיאה בשמירת יומן יומי:", e);
+      console.error("שגיאה בשמירת יומן:", e);
     }
 
     // בקבוצה - מגיב רק אם פנו אליו בשם
@@ -603,6 +773,18 @@ ${logText}
     if (!wasMentioned) return;
 
     console.log(`📩 הודעה לרובי מ-${senderName}: ${text}`);
+
+    // אם יש חידון פעיל - בודקים אם זו תשובה נכונה
+    if (activeQuiz) {
+      const answered = await checkQuizAnswer(text, senderName, chatId);
+      if (answered) return;
+    }
+
+    // בקשה להתחיל חידון
+    if (/חידון|חידה|בוא.?נשחק|משחק/.test(text)) {
+      await startQuiz(chatId);
+      return;
+    }
 
     try {
       const data = loadData();
