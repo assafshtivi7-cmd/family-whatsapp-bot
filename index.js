@@ -5,6 +5,7 @@ const {
   default: makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
+  downloadMediaMessage,
 } = require("@whiskeysockets/baileys");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const qrcode = require("qrcode-terminal");
@@ -17,9 +18,11 @@ const fs = require("fs");
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const BOT_NAME = process.env.BOT_NAME || "רובי";
 const PORT = process.env.PORT || 3000;
-const FAMILY_GROUP_KEYWORD = "שטווי"; // מילה מזהה בשם הקבוצה המשפחתית
+const FAMILY_GROUP_KEYWORD = "המהממת"; // מילה ייחודית לקבוצה המשפחתית "משפחת שטווי המהממת!"
 const MORNING_BRIEFING_HOUR = 6;
 const MORNING_BRIEFING_MINUTE = 30;
+const EVENING_SUMMARY_HOUR = 21;
+const EVENING_SUMMARY_MINUTE = 0;
 
 // מיפוי מספרי טלפון (בפורמט בינלאומי, בלי +, למשל "972501234567") לשם בן המשפחה
 // משמש בעיקר לצ'אטים פרטיים. בקבוצה, וואטסאפ לפעמים מסתיר את המספר האמיתי (LID),
@@ -95,9 +98,10 @@ function loadData() {
     const data = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
     if (!data.memories) data.memories = [];
     if (!data.history) data.history = [];
+    if (!data.dailyLog) data.dailyLog = [];
     return data;
   } catch {
-    return { shoppingList: [], reminders: [], memories: [], history: [] };
+    return { shoppingList: [], reminders: [], memories: [], history: [], dailyLog: [] };
   }
 }
 function saveData(data) {
@@ -224,6 +228,34 @@ function processCommands(text, data) {
   return cleanText.trim();
 }
 
+// ====== תמלול הודעה קולית עם Gemini ======
+async function transcribeVoiceMessage(msg) {
+  try {
+    const buffer = await downloadMediaMessage(msg, "buffer", {});
+    const base64Audio = buffer.toString("base64");
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: "audio/ogg; codecs=opus",
+                data: base64Audio,
+              },
+            },
+            { text: "תמלל את ההודעה הקולית הזו בעברית. כתוב רק את הטקסט המתומלל, בלי הסברים נוספים." },
+          ],
+        },
+      ],
+    });
+    return result.response.text().trim();
+  } catch (err) {
+    console.error("שגיאה בתמלול הודעה קולית:", err);
+    return null;
+  }
+}
+
 // ====== חיבור לוואטסאפ ======
 async function startBot() {
   console.log("🔄 מתחיל להתחבר לוואטסאפ...");
@@ -320,17 +352,66 @@ async function startBot() {
     }
   }
 
-  // בודק כל דקה אם הגיע הזמן לשלוח את תדריך הבוקר (פעם אחת ביום)
+  async function sendEveningSummary() {
+    if (!familyGroupId) return;
+    try {
+      const data = loadData();
+      if (data.dailyLog.length === 0) {
+        console.log("📋 אין פעילות לסיכום ערב");
+        return;
+      }
+
+      const logText = data.dailyLog
+        .map((e) => `${e.sender}: ${e.text}`)
+        .join("\n");
+
+      const prompt = `הנה כל מה שקרה היום בקבוצת המשפחה:
+
+${logText}
+
+כתוב סיכום ערב קצר ומצחיק לקבוצה המשפחתית. 
+- התייחס לכל מי שהשתתף היום בשם (אסף, שירן, ענבר, איתמר, שלו) עם תגובה הומוריסטית קלילה על מה שהם אמרו/ביקשו
+- אם מישהו לא דיבר היום - ציין את זה בשנינות (למשל "ענבר שמרה על שקט מסתורי היום")
+- סיים עם משפט ערב טוב חם לכל המשפחה
+- מקסימום 12 שורות, עברית, טון קליל ומשפחתי`;
+
+      const reply = await askGemini(prompt, data, "המערכת (סיכום ערב אוטומטי)");
+      const cleanReply = processCommands(reply, data);
+
+      // איפוס יומן היומי לאחר שליחת הסיכום
+      data.dailyLog = [];
+      saveData(data);
+
+      const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
+      console.log("🌙 סיכום ערב נשלח לקבוצה המשפחתית");
+    } catch (err) {
+      console.error("שגיאה בשליחת סיכום ערב:", err);
+    }
+  }
+
+  // בודק כל דקה אם הגיע הזמן לשלוח תדריך בוקר או סיכום ערב
+  let lastSummaryDate = null;
   setInterval(() => {
     const now = new Date();
     const todayStr = now.toDateString();
-    if (
-      now.getHours() === MORNING_BRIEFING_HOUR &&
-      now.getMinutes() === MORNING_BRIEFING_MINUTE &&
-      lastBriefingDate !== todayStr
-    ) {
+    const h = now.getHours();
+    const m = now.getMinutes();
+
+    if (h === MORNING_BRIEFING_HOUR && m === MORNING_BRIEFING_MINUTE && lastBriefingDate !== todayStr) {
       lastBriefingDate = todayStr;
       sendMorningBriefing();
+    }
+
+    if (h === EVENING_SUMMARY_HOUR && m === EVENING_SUMMARY_MINUTE && lastSummaryDate !== todayStr) {
+      lastSummaryDate = todayStr;
+      sendEveningSummary();
     }
   }, 60 * 1000);
 
@@ -343,12 +424,14 @@ async function startBot() {
     // אם זו הודעה שאתה כתבת בעצמך מהטלפון (גם היא fromMe, כי הבוט מחובר למספר שלך) - עונים כרגיל.
     if (msg.key.fromMe && botSentMessageIds.has(msg.key.id)) return;
 
+    // זיהוי סוג ההודעה - טקסט או קולית
+    const isVoice = !!(msg.message.audioMessage && msg.message.audioMessage.ptt);
     const text =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
       "";
 
-    if (!text) return;
+    if (!text && !isVoice) return;
 
     const chatId = msg.key.remoteJid;
     const isGroup = chatId.endsWith("@g.us");
@@ -356,7 +439,7 @@ async function startBot() {
     // הבוט מגיב רק בקבוצה המשפחתית - מתעלם לחלוטין מצ'אטים פרטיים
     if (!isGroup) return;
 
-    // בודקים ששם הקבוצה הוא הקבוצה המשפחתית הנכונה (מכיל "שטווי")
+    // בודקים ששם הקבוצה הוא הקבוצה המשפחתית הנכונה
     try {
       const groupMetadata = await sock.groupMetadata(chatId);
       if (!groupMetadata.subject.includes(FAMILY_GROUP_KEYWORD)) return;
@@ -365,19 +448,66 @@ async function startBot() {
       return;
     }
 
-    // בקבוצה - מגיב רק אם פנו אליו בשם או עם "בוט"
+    const senderName = getSenderName(msg, isGroup);
+    console.log(`🔍 DEBUG - pushName: ${msg.pushName} | זוהה כ: ${senderName}`);
+
+    // ====== טיפול בהודעה קולית ======
+    if (isVoice) {
+      console.log(`🎤 הודעה קולית התקבלה מ-${senderName}`);
+      try {
+        const transcribed = await transcribeVoiceMessage(msg);
+        if (!transcribed) return;
+        console.log(`📝 תמלול: ${transcribed}`);
+
+        // שמירה ביומן היומי
+        const data = loadData();
+        data.dailyLog.push({ sender: senderName, text: `[קולית] ${transcribed}` });
+        saveData(data);
+
+        // אם ההודעה הקולית מכילה "רובי" - הבוט יענה עליה
+        const mentionsBot = [BOT_NAME, "רובי"].some((w) => transcribed.includes(w));
+        if (mentionsBot) {
+          const reply = await askGemini(transcribed, data, senderName);
+          const cleanReply = processCommands(reply, data);
+          data.history.push({ role: "user", text: `${senderName}: ${transcribed}` });
+          data.history.push({ role: "bot", text: cleanReply });
+          if (data.history.length > MAX_HISTORY) data.history = data.history.slice(-MAX_HISTORY);
+          saveData(data);
+
+          const sent = await sock.sendMessage(chatId, { text: `🎤 שמעתי: "${transcribed}"\n\n${cleanReply}` });
+          if (sent?.key?.id) {
+            botSentMessageIds.add(sent.key.id);
+            if (botSentMessageIds.size > 50) {
+              const first = botSentMessageIds.values().next().value;
+              botSentMessageIds.delete(first);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("שגיאה בטיפול בהודעה קולית:", err);
+      }
+      return;
+    }
+
+    // ====== טיפול בהודעת טקסט ======
+
+    // שמירה ביומן היומי (כל הודעה בקבוצה, לא רק מי שפונה לרובי)
+    try {
+      const dataForLog = loadData();
+      dataForLog.dailyLog.push({ sender: senderName, text });
+      // מגבילים את היומן ל-100 הודעות כדי לא לתפוח
+      if (dataForLog.dailyLog.length > 100) dataForLog.dailyLog = dataForLog.dailyLog.slice(-100);
+      saveData(dataForLog);
+    } catch (e) {
+      console.error("שגיאה בשמירת יומן יומי:", e);
+    }
+
+    // בקבוצה - מגיב רק אם פנו אליו בשם
     const triggerWords = [BOT_NAME, "רובי"];
     const wasMentioned = triggerWords.some((w) => text.includes(w));
-
     if (!wasMentioned) return;
 
-    console.log(`📩 הודעה התקבלה: ${text}`);
-    const senderJidDebug = isGroup
-      ? msg.key.participant || msg.key.remoteJid
-      : msg.key.remoteJid;
-    console.log(`🔍 DEBUG - JID: ${senderJidDebug} | pushName: ${msg.pushName}`);
-    const senderName = getSenderName(msg, isGroup);
-    console.log(`👤 נשלח על ידי: ${senderName}`);
+    console.log(`📩 הודעה לרובי מ-${senderName}: ${text}`);
 
     try {
       const data = loadData();
