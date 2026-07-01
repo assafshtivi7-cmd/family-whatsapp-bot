@@ -1,4 +1,4 @@
-// בוט משפחתי לוואטסאפ עם Gemini AI
+0// בוט משפחתי לוואטסאפ עם Gemini AI
 // ====================================
 
 const {
@@ -100,9 +100,10 @@ function loadData() {
     if (!data.memories) data.memories = [];
     if (!data.history) data.history = [];
     if (!data.dailyLog) data.dailyLog = [];
+    if (!data.scheduledReminders) data.scheduledReminders = [];
     return data;
   } catch {
-    return { shoppingList: [], reminders: [], memories: [], history: [], dailyLog: [] };
+    return { shoppingList: [], reminders: [], memories: [], history: [], dailyLog: [], scheduledReminders: [] };
   }
 }
 function saveData(data) {
@@ -184,6 +185,10 @@ ${recentHistory || "(זו ההודעה הראשונה בשיחה)"}
 אם המשתמש מבקש ממך לשכוח/למחוק עובדה ששמרת:
 [FORGET: העובדה למחיקה]
 
+אם המשתמש מבקש תזכורת בשעה ספציפית (למשל "תזכיר לי ב-17:00 לאסוף את שלו"):
+[REMIND: 17:00 | לאסוף את שלו]
+(תמיד בפורמט HH:MM ואחרי | את תוכן התזכורת. אם לא צוינה שעה מפורשת, שאל מה השעה הרצויה)
+
 תמיד תכתוב את הפקודות הרלוונטיות (אם יש), ואז המשך עם תשובה רגילה וטבעית בעברית.`;
 
   const result = await model.generateContent({
@@ -225,6 +230,25 @@ function processCommands(text, data) {
   for (const m of forgetMatches) {
     const fact = m[1].trim();
     data.memories = data.memories.filter((f) => f !== fact);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // תזכורות מתוזמנות - פורמט: [REMIND: HH:MM | תוכן התזכורת]
+  const remindMatches = [...text.matchAll(/\[REMIND:\s*(\d{1,2}:\d{2})\s*\|\s*([^\]]+)\]/g)];
+  for (const m of remindMatches) {
+    const time = m[1].trim();
+    const content = m[2].trim();
+    const [hStr, minStr] = time.split(":");
+    const reminder = {
+      hour: parseInt(hStr),
+      minute: parseInt(minStr),
+      content,
+      date: new Date().toDateString(), // תקף ליום הזה בלבד
+      id: Date.now() + Math.random(),
+    };
+    if (!data.scheduledReminders) data.scheduledReminders = [];
+    data.scheduledReminders.push(reminder);
+    console.log(`⏰ תזכורת נשמרה: ${time} - ${content}`);
     cleanText = cleanText.replace(m[0], "");
   }
 
@@ -430,9 +454,9 @@ ${logText}
     }
   }
 
-  // בודק כל דקה אם הגיע הזמן לשלוח תדריך בוקר, סיכום ערב או תזכורת מקס
+  // בודק כל דקה אם הגיע הזמן לשלוח תדריך בוקר, סיכום ערב, תזכורת מקס, או תזכורת מתוזמנת
   let lastSummaryDate = null;
-  setInterval(() => {
+  setInterval(async () => {
     const now = new Date();
     const todayStr = now.toDateString();
     const h = now.getHours();
@@ -451,6 +475,38 @@ ${logText}
     // תזכורות מקס ב-13:00 וב-16:00
     if (m === 0 && DOG_WALK_HOURS.includes(h)) {
       sendDogWalkReminder(h);
+    }
+
+    // בדיקת תזכורות מתוזמנות שהמשפחה ביקשה
+    if (familyGroupId) {
+      try {
+        const data = loadData();
+        const pending = data.scheduledReminders || [];
+        const toFire = pending.filter(
+          (r) => r.date === todayStr && r.hour === h && r.minute === m
+        );
+        if (toFire.length > 0) {
+          for (const r of toFire) {
+            const reminderText = `⏰ תזכורת!\n\n${r.content}`;
+            const sent = await sock.sendMessage(familyGroupId, { text: reminderText });
+            if (sent?.key?.id) {
+              botSentMessageIds.add(sent.key.id);
+              if (botSentMessageIds.size > 50) {
+                const first = botSentMessageIds.values().next().value;
+                botSentMessageIds.delete(first);
+              }
+            }
+            console.log(`⏰ תזכורת נשלחה: ${r.content}`);
+          }
+          // מחיקת התזכורות ששוגרו
+          data.scheduledReminders = pending.filter(
+            (r) => !(r.date === todayStr && r.hour === h && r.minute === m)
+          );
+          saveData(data);
+        }
+      } catch (e) {
+        console.error("שגיאה בבדיקת תזכורות:", e);
+      }
     }
   }, 60 * 1000);
 
