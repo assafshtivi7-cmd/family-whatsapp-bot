@@ -106,13 +106,21 @@ function loadData() {
     if (!data.history) data.history = [];
     if (!data.dailyLog) data.dailyLog = [];
     if (!data.scheduledReminders) data.scheduledReminders = [];
+    if (!data.weeklyReminders) data.weeklyReminders = [];
     if (!data.weeklyLog) data.weeklyLog = [];
     if (!data.events) data.events = [];
+    if (!data.trip) data.trip = [];
+    if (!data.allowances) data.allowances = {};
+    if (!data.points) data.points = {};
+    if (!data.birthdays) data.birthdays = [];
+    if (!data.recipes) data.recipes = [];
+    if (!data.activePoll) data.activePoll = null;
     return data;
   } catch {
     return {
       shoppingList: [], reminders: [], memories: [], history: [],
-      dailyLog: [], scheduledReminders: [], weeklyLog: [], events: [],
+      dailyLog: [], scheduledReminders: [], weeklyReminders: [], weeklyLog: [], events: [],
+      trip: [], allowances: {}, points: {}, birthdays: [], recipes: [], activePoll: null,
     };
   }
 }
@@ -178,6 +186,26 @@ async function askGemini(userMessage, context, senderName) {
 
 מצב נוכחי - רשימת קניות: ${context.shoppingList.join(", ") || "ריקה"}
 
+== מידע על טיול תאילנד המשפחתי ==
+${context.trip.length > 0 ? context.trip.map((t) => `- ${t}`).join("\n") : "עדיין לא נשמרו פרטי טיול"}
+(אם נשאלת על הטיול - השתמש במידע הזה. להמרות מטבע שקל-באט השתמש בחיפוש בגוגל לשער עדכני)
+
+== דמי כיס של הילדים ==
+${Object.keys(context.allowances).length > 0 ? Object.entries(context.allowances).map(([n, a]) => `- ${n}: ${a} ש"ח`).join("\n") : "לא מנוהלים עדיין דמי כיס"}
+
+== טבלת נקודות משפחתית (מטלות) ==
+${Object.keys(context.points).length > 0 ? Object.entries(context.points).map(([n, p]) => `- ${n}: ${p} נקודות`).join("\n") : "אין עדיין נקודות"}
+
+== ימי הולדת שמורים ==
+${context.birthdays.length > 0 ? context.birthdays.map((b) => `- ${b.name}: ${b.date}`).join("\n") : "לא נשמרו ימי הולדת"}
+
+== מתכונים מוצלחים ששמרנו ==
+${context.recipes.length > 0 ? context.recipes.map((r) => `- ${r}`).join("\n") : "אין עדיין מתכונים שמורים"}
+(אם שואלים "מה מכינים היום" - הצע רעיון לפי רשימת הקניות והמתכונים השמורים)
+
+== סקר פעיל ==
+${context.activePoll ? `שאלה: ${context.activePoll.question}\nאפשרויות: ${context.activePoll.options.join(", ")}\nהצביעו עד כה: ${Object.entries(context.activePoll.votes).map(([voter, choice]) => `${voter} → ${choice}`).join(", ") || "אף אחד עדיין"}` : "אין סקר פעיל כרגע"}
+
 == עובדות קבועות שנתבקשת לזכור בעבר ==
 ${memoriesText}
 
@@ -195,13 +223,45 @@ ${recentHistory || "(זו ההודעה הראשונה בשיחה)"}
 אם המשתמש מבקש ממך לשכוח/למחוק עובדה ששמרת:
 [FORGET: העובדה למחיקה]
 
-אם המשתמש מבקש תזכורת בשעה ספציפית (למשל "תזכיר לי ב-17:00 לאסוף את שלו"):
+תזכורת להיום בשעה ספציפית (למשל "תזכיר לי ב-17:00 לאסוף את שלו"):
 [REMIND: 17:00 | לאסוף את שלו]
-(תמיד בפורמט HH:MM ואחרי | את תוכן התזכורת. אם לא צוינה שעה מפורשת, שאל מה השעה הרצויה)
 
-אם המשתמש מספר על אירוע קרוב או מבקש להוסיף אירוע לשבוע (למשל "יש לנו אסיפת הורים ביום שלישי", "רובי תוסיף שיש לאיתמר מבחן בחמישי"):
-[EVENT: היום/התאריך | תיאור האירוע]
-לדוגמה: [EVENT: יום שלישי | אסיפת הורים בבית ספר של שלו]
+תזכורת לתאריך עתידי (למשל "תזכיר לי ב-15/7 בשעה 10:00 תור לרופא"):
+[REMIND_DATE: 15/7 | 10:00 | תור לרופא]
+(פורמט: יום/חודש | שעה | תוכן)
+
+תזכורת שבועית חוזרת (למשל "תזכיר כל יום רביעי ב-16:00 חוג כדורגל של שלו"):
+[REMIND_WEEKLY: רביעי | 16:00 | חוג כדורגל של שלו]
+(שם היום בעברית: ראשון/שני/שלישי/רביעי/חמישי/שישי/שבת)
+
+אם המשתמש מספר על אירוע קרוב (למשל "יש לנו אסיפת הורים ביום שלישי"):
+[EVENT: יום שלישי | אסיפת הורים בבית ספר של שלו]
+
+לשמור פרט על טיול תאילנד ("רובי תשמור שהטיסה ב-2/9 בשעה 23:50"):
+[TRIP: טיסה ב-2/9 בשעה 23:50]
+
+לעדכן דמי כיס ("רובי, שלו קיבל 50 שח" / "איתמר הוציא 20 שח"):
+[ALLOWANCE: שלו | +50] או [ALLOWANCE: איתמר | -20]
+
+לתת נקודות על מטלות ("רובי, שלו הוריד את מקס"):
+[POINTS: שלו | +10]
+(ברירת מחדל: מטלה רגילה +10, מטלה גדולה +20. אפשר גם להוריד נקודות עם מינוס)
+
+לשמור יום הולדת ("רובי תשמור שיום ההולדת של סבתא רחל ב-12/8"):
+[BIRTHDAY: סבתא רחל | 12/8]
+
+לשמור מתכון מוצלח ("רובי תשמור את המתכון של הפסטה שאהבנו"):
+[RECIPE: פסטה ברוטב עגבניות ושמנת - התיאור]
+
+להתחיל סקר ("רובי תעשה הצבעה: פיצה או סושי?"):
+[POLL: מה אוכלים הערב? | פיצה, סושי]
+(פורמט: שאלה | אפשרות1, אפשרות2, ...)
+
+כשמישהו מצביע בסקר פעיל (למשל כותב "רובי אני בוחר פיצה"):
+[VOTE: פיצה]
+
+לסיים סקר ולהכריז תוצאות ("רובי כמה הצביעו?" / "רובי תסגור את הסקר"):
+[POLL_END]
 
 תמיד תכתוב את הפקודות הרלוונטיות (אם יש), ואז המשך עם תשובה רגילה וטבעית בעברית.`;
 
@@ -216,7 +276,7 @@ ${recentHistory || "(זו ההודעה הראשונה בשיחה)"}
 }
 
 // עיבוד פקודות מהתשובה של Gemini (הוספה/הסרה מרשימה, זכירה/שכיחה של עובדות)
-function processCommands(text, data) {
+function processCommands(text, data, senderName) {
   let cleanText = text;
 
   const addMatches = [...text.matchAll(/\[ADD:\s*([^\]]+)\]/g)];
@@ -275,6 +335,136 @@ function processCommands(text, data) {
     data.events.push({ day, desc, addedAt: new Date().toDateString() });
     console.log(`📅 אירוע נשמר: ${day} - ${desc}`);
     cleanText = cleanText.replace(m[0], "");
+  }
+
+  // תזכורת לתאריך עתידי - [REMIND_DATE: DD/MM | HH:MM | תוכן]
+  const remindDateMatches = [...text.matchAll(/\[REMIND_DATE:\s*(\d{1,2})\/(\d{1,2})\s*\|\s*(\d{1,2}):(\d{2})\s*\|\s*([^\]]+)\]/g)];
+  for (const m of remindDateMatches) {
+    const reminder = {
+      day: parseInt(m[1]),
+      month: parseInt(m[2]),
+      hour: parseInt(m[3]),
+      minute: parseInt(m[4]),
+      content: m[5].trim(),
+      type: "date",
+      id: Date.now() + Math.random(),
+    };
+    data.scheduledReminders.push(reminder);
+    console.log(`📆 תזכורת לתאריך נשמרה: ${m[1]}/${m[2]} ${m[3]}:${m[4]} - ${reminder.content}`);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // תזכורת שבועית חוזרת - [REMIND_WEEKLY: יום | HH:MM | תוכן]
+  const hebrewDays = { "ראשון": 0, "שני": 1, "שלישי": 2, "רביעי": 3, "חמישי": 4, "שישי": 5, "שבת": 6 };
+  const remindWeeklyMatches = [...text.matchAll(/\[REMIND_WEEKLY:\s*([^|]+)\|\s*(\d{1,2}):(\d{2})\s*\|\s*([^\]]+)\]/g)];
+  for (const m of remindWeeklyMatches) {
+    const dayName = m[1].trim().replace("יום ", "");
+    const dayOfWeek = hebrewDays[dayName];
+    if (dayOfWeek === undefined) continue;
+    const reminder = {
+      dayOfWeek,
+      dayName,
+      hour: parseInt(m[2]),
+      minute: parseInt(m[3]),
+      content: m[4].trim(),
+      id: Date.now() + Math.random(),
+    };
+    data.weeklyReminders.push(reminder);
+    console.log(`🔁 תזכורת שבועית נשמרה: כל יום ${dayName} ${m[2]}:${m[3]} - ${reminder.content}`);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // פרטי טיול - [TRIP: פרט]
+  const tripMatches = [...text.matchAll(/\[TRIP:\s*([^\]]+)\]/g)];
+  for (const m of tripMatches) {
+    const info = m[1].trim();
+    if (!data.trip.includes(info)) data.trip.push(info);
+    console.log(`✈️ פרט טיול נשמר: ${info}`);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // דמי כיס - [ALLOWANCE: שם | +50 / -20]
+  const allowanceMatches = [...text.matchAll(/\[ALLOWANCE:\s*([^|]+)\|\s*([+-]?\d+)\]/g)];
+  for (const m of allowanceMatches) {
+    const name = m[1].trim();
+    const amount = parseInt(m[2]);
+    if (!data.allowances[name]) data.allowances[name] = 0;
+    data.allowances[name] += amount;
+    console.log(`💰 דמי כיס עודכנו: ${name} ${amount > 0 ? "+" : ""}${amount} (סה"כ: ${data.allowances[name]})`);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // נקודות מטלות - [POINTS: שם | +10]
+  const pointsMatches = [...text.matchAll(/\[POINTS:\s*([^|]+)\|\s*([+-]?\d+)\]/g)];
+  for (const m of pointsMatches) {
+    const name = m[1].trim();
+    const pts = parseInt(m[2]);
+    if (!data.points[name]) data.points[name] = 0;
+    data.points[name] += pts;
+    console.log(`🏆 נקודות עודכנו: ${name} ${pts > 0 ? "+" : ""}${pts} (סה"כ: ${data.points[name]})`);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // ימי הולדת - [BIRTHDAY: שם | DD/MM]
+  const birthdayMatches = [...text.matchAll(/\[BIRTHDAY:\s*([^|]+)\|\s*(\d{1,2}\/\d{1,2})\]/g)];
+  for (const m of birthdayMatches) {
+    const name = m[1].trim();
+    const date = m[2].trim();
+    if (!data.birthdays.some((b) => b.name === name)) {
+      data.birthdays.push({ name, date });
+      console.log(`🎂 יום הולדת נשמר: ${name} - ${date}`);
+    }
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // מתכונים - [RECIPE: תיאור]
+  const recipeMatches = [...text.matchAll(/\[RECIPE:\s*([^\]]+)\]/g)];
+  for (const m of recipeMatches) {
+    const recipe = m[1].trim();
+    if (!data.recipes.includes(recipe)) data.recipes.push(recipe);
+    console.log(`🍽️ מתכון נשמר: ${recipe}`);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // התחלת סקר - [POLL: שאלה | אופציה1, אופציה2]
+  const pollMatches = [...text.matchAll(/\[POLL:\s*([^|]+)\|\s*([^\]]+)\]/g)];
+  for (const m of pollMatches) {
+    const question = m[1].trim();
+    const options = m[2].split(",").map((o) => o.trim()).filter(Boolean);
+    data.activePoll = { question, options, votes: {} };
+    console.log(`📊 סקר התחיל: ${question} (${options.join(" / ")})`);
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // הצבעה - [VOTE: אופציה]
+  const voteMatches = [...text.matchAll(/\[VOTE:\s*([^\]]+)\]/g)];
+  for (const m of voteMatches) {
+    const choice = m[1].trim();
+    if (data.activePoll) {
+      data.activePoll.votes[senderName || "לא ידוע"] = choice;
+      console.log(`🗳️ ${senderName} הצביע: ${choice}`);
+    }
+    cleanText = cleanText.replace(m[0], "");
+  }
+
+  // סיום סקר והכרזת תוצאות - [POLL_END]
+  if (/\[POLL_END\]/.test(text)) {
+    cleanText = cleanText.replace(/\[POLL_END\]/g, "");
+    if (data.activePoll) {
+      const tally = {};
+      for (const choice of Object.values(data.activePoll.votes)) {
+        tally[choice] = (tally[choice] || 0) + 1;
+      }
+      const results = Object.entries(tally)
+        .sort((a, b) => b[1] - a[1])
+        .map(([opt, count]) => `${opt}: ${count} קולות`)
+        .join("\n");
+      const winner = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+      cleanText += `\n\n📊 תוצאות הסקר "${data.activePoll.question}":\n${results || "אף אחד לא הצביע 😅"}`;
+      if (winner) cleanText += `\n\n🏆 המנצח: ${winner[0]}!`;
+      data.activePoll = null;
+      console.log("📊 סקר הסתיים");
+    }
   }
 
   return cleanText.trim();
@@ -388,14 +578,19 @@ async function startBot() {
     }
     try {
       const data = loadData();
-      const prompt = `כתוב תדריך בוקר קצר וחם למשפחה, שיישלח כהודעה אחת בקבוצת הוואטסאפ המשפחתית. כלול:
-1) פתיחה חמה של "בוקר טוב" עם תאריך היום.
+      const now = new Date();
+      const hebrewDayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+      const realDate = `יום ${hebrewDayNames[now.getDay()]}, ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+      const prompt = `היום הוא: ${realDate} (זהו התאריך האמיתי והמדויק - השתמש בו, אל תנחש תאריך אחר!)
+
+כתוב תדריך בוקר קצר וחם למשפחה, שיישלח כהודעה אחת בקבוצת הוואטסאפ המשפחתית. כלול:
+1) פתיחה חמה של "בוקר טוב" עם היום והתאריך שצוינו למעלה.
 2) משפט מוטיבציה קצר אחד שמתאים אישית לכל אחד מבני המשפחה (אסף, שירן, ענבר, איתמר, שלו) בהתאם לאופי שמתואר לך.
 3) הצעה אחת קטנה וקונקרטית לפעילות משפחתית נחמדה לעשות היום או בקרוב (משהו קליל, לא יקר, מתאים לכולם).
 תשובה קצרה וחמה, מקסימום 10-12 שורות בסך הכל, בעברית.`;
 
       const reply = await askGemini(prompt, data, "המערכת (תדריך בוקר אוטומטי)");
-      const cleanReply = processCommands(reply, data);
+      const cleanReply = processCommands(reply, data, "המערכת");
       saveData(data);
 
       const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
@@ -437,7 +632,7 @@ ${logText}
 - מקסימום 14 שורות, עברית, טון קליל ומשפחתי`;
 
       const reply = await askGemini(prompt, data, "המערכת (סיכום ערב אוטומטי)");
-      const cleanReply = processCommands(reply, data);
+      const cleanReply = processCommands(reply, data, "המערכת");
 
       // איפוס יומן היומי לאחר שליחת הסיכום
       data.dailyLog = [];
@@ -498,7 +693,7 @@ ${logText}
 תהיה חם, קליל ולא מעיק. מקסימום 3-4 שורות, עברית. אל תשתמש בפורמט של רשימה.`;
 
       const reply = await askGemini(prompt, data, "המערכת (שיחת צהריים אוטומטית)");
-      const cleanReply = processCommands(reply, data);
+      const cleanReply = processCommands(reply, data, "המערכת");
       saveData(data);
 
       const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
@@ -531,6 +726,10 @@ ${logText}
         ? events.map((e) => `${e.day}: ${e.desc}`).join("\n")
         : "לא נרשמו אירועים";
 
+      const pointsText = Object.keys(data.points || {}).length > 0
+        ? Object.entries(data.points).map(([n, p]) => `${n}: ${p} נקודות`).join("\n")
+        : "אין נקודות השבוע";
+
       const prompt = `הנה פעילות המשפחה מהשבוע האחרון:
 
 == הודעות השבוע ==
@@ -539,19 +738,24 @@ ${logText}
 == אירועים שנרשמו ==
 ${eventsText}
 
+== טבלת הנקודות (מטלות) ==
+${pointsText}
+
 כתוב סיכום שבועי הומוריסטי וחם לקבוצת המשפחה. 
 - סקור בקצרה ובהומור מה קרה השבוע ומי היה הכי פעיל
+- הכרז על אלוף/ת השבוע לפי טבלת הנקודות (אם יש נקודות) עם חגיגיות
 - תן "פרס" מצחיק לכל אחד מבני המשפחה על משהו (למשל "פרס הכי הרבה בקשות קניות")
 - הזכר אירועים חשובים שמתקרבים
 - אחל שבת שלום וסוף שבוע נעים
 - מקסימום 15 שורות, עברית, טון קליל ומשפחתי`;
 
       const reply = await askGemini(prompt, data, "המערכת (סיכום שבועי אוטומטי)");
-      const cleanReply = processCommands(reply, data);
+      const cleanReply = processCommands(reply, data, "המערכת");
 
-      // איפוס יומן שבועי ואירועים ישנים לאחר הסיכום
+      // איפוס יומן שבועי, אירועים ישנים ונקודות לאחר הסיכום (תחרות חדשה כל שבוע)
       data.weeklyLog = [];
       data.events = [];
+      data.points = {};
       saveData(data);
 
       const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
@@ -658,29 +862,61 @@ ${eventsText}
     if (familyGroupId) {
       try {
         const data = loadData();
+        let changed = false;
+        const sendReminder = async (content, prefix = "⏰ תזכורת!") => {
+          const sent = await sock.sendMessage(familyGroupId, { text: `${prefix}\n\n${content}` });
+          if (sent?.key?.id) {
+            botSentMessageIds.add(sent.key.id);
+            if (botSentMessageIds.size > 50) {
+              const first = botSentMessageIds.values().next().value;
+              botSentMessageIds.delete(first);
+            }
+          }
+          console.log(`⏰ תזכורת נשלחה: ${content}`);
+        };
+
+        // 1. תזכורות של "היום" (הפורמט הישן)
         const pending = data.scheduledReminders || [];
         const toFire = pending.filter(
-          (r) => r.date === todayStr && r.hour === h && r.minute === m
+          (r) => !r.type && r.date === todayStr && r.hour === h && r.minute === m
         );
-        if (toFire.length > 0) {
-          for (const r of toFire) {
-            const reminderText = `⏰ תזכורת!\n\n${r.content}`;
-            const sent = await sock.sendMessage(familyGroupId, { text: reminderText });
-            if (sent?.key?.id) {
-              botSentMessageIds.add(sent.key.id);
-              if (botSentMessageIds.size > 50) {
-                const first = botSentMessageIds.values().next().value;
-                botSentMessageIds.delete(first);
-              }
-            }
-            console.log(`⏰ תזכורת נשלחה: ${r.content}`);
-          }
-          // מחיקת התזכורות ששוגרו
+        for (const r of toFire) await sendReminder(r.content);
+
+        // 2. תזכורות לתאריך עתידי (DD/MM)
+        const dateToFire = pending.filter(
+          (r) => r.type === "date" && r.day === now.getDate() && r.month === now.getMonth() + 1 && r.hour === h && r.minute === m
+        );
+        for (const r of dateToFire) await sendReminder(r.content, "📆 תזכורת!");
+
+        if (toFire.length > 0 || dateToFire.length > 0) {
           data.scheduledReminders = pending.filter(
-            (r) => !(r.date === todayStr && r.hour === h && r.minute === m)
+            (r) => !toFire.includes(r) && !dateToFire.includes(r)
           );
-          saveData(data);
+          changed = true;
         }
+
+        // 3. תזכורות שבועיות חוזרות (לא נמחקות אחרי שליחה)
+        const weekly = (data.weeklyReminders || []).filter(
+          (r) => r.dayOfWeek === now.getDay() && r.hour === h && r.minute === m
+        );
+        for (const r of weekly) await sendReminder(r.content, "🔁 תזכורת שבועית!");
+
+        // 4. בדיקת ימי הולדת - פעם ביום ב-08:00
+        if (h === 8 && m === 0) {
+          const todayDM = `${now.getDate()}/${now.getMonth() + 1}`;
+          const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          const tomorrowDM = `${tomorrow.getDate()}/${tomorrow.getMonth() + 1}`;
+          for (const b of data.birthdays || []) {
+            const normalized = b.date.replace(/^0/, "").replace(/\/0/, "/");
+            if (normalized === todayDM) {
+              await sendReminder(`היום יום ההולדת של ${b.name}! 🥳 אל תשכחו לאחל מזל טוב!`, "🎂 יום הולדת!");
+            } else if (normalized === tomorrowDM) {
+              await sendReminder(`מחר יום ההולדת של ${b.name}! אולי כדאי להכין משהו? 😉`, "🎂 תזכורת מראש!");
+            }
+          }
+        }
+
+        if (changed) saveData(data);
       } catch (e) {
         console.error("שגיאה בבדיקת תזכורות:", e);
       }
@@ -745,7 +981,7 @@ ${eventsText}
         const mentionsBot = [BOT_NAME, "רובי"].some((w) => transcribed.includes(w));
         if (mentionsBot) {
           const reply = await askGemini(transcribed, data, senderName);
-          const cleanReply = processCommands(reply, data);
+          const cleanReply = processCommands(reply, data, senderName);
           data.history.push({ role: "user", text: `${senderName}: ${transcribed}` });
           data.history.push({ role: "bot", text: cleanReply });
           if (data.history.length > MAX_HISTORY) data.history = data.history.slice(-MAX_HISTORY);
@@ -802,7 +1038,7 @@ ${eventsText}
     try {
       const data = loadData();
       const reply = await askGemini(text, data, senderName);
-      const cleanReply = processCommands(reply, data);
+      const cleanReply = processCommands(reply, data, senderName);
 
       // עדכון זיכרון השיחה (ההודעה של המשתמש + התשובה של הבוט)
       data.history.push({ role: "user", text: `${senderName}: ${text}` });
