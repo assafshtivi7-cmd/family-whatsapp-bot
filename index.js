@@ -19,7 +19,10 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const BOT_NAME = process.env.BOT_NAME || "רובי";
 const PORT = process.env.PORT || 3000;
 const FAMILY_GROUP_KEYWORD = "המהממת"; // מילה ייחודית לקבוצה המשפחתית "משפחת שטווי המהממת!"
+const GRANDMA_GROUP_KEYWORD = "סבתא"; // מילה ייחודית לקבוצה "רובי וסבתא"
 const MORNING_BRIEFING_HOUR = 6;
+const GRANDMA_BRIEFING_HOUR = 7; // תדריך בוקר לקבוצה של סבתא מירה
+const GRANDMA_BRIEFING_MINUTE = 0;
 const MORNING_BRIEFING_MINUTE = 30;
 const EVENING_SUMMARY_HOUR = 21;
 const EVENING_SUMMARY_MINUTE = 0;
@@ -48,6 +51,7 @@ const FAMILY_PHONE_MAP = {
   "972534303473": "ענבר",
   "972522916665": "איתמר",
   "972512897618": "שלו",
+  "972506255950": "מירה",
 };
 
 // זיהוי גיבוי לפי מילות מפתח שעשויות להופיע בשם הפרופיל/איש הקשר של כל אחד בקבוצה
@@ -57,6 +61,7 @@ const FAMILY_NAME_VARIANTS = {
   ענבר: ["ענבר", "inbar"],
   איתמר: ["איתמר", "itamar"],
   שלו: ["שלו", "shelo", "shalev"],
+  מירה: ["מירה", "mira", "אמא", "אמא של אסף", "סבתא מירה", "סבתא"],
 };
 
 if (!GEMINI_API_KEY) {
@@ -164,7 +169,7 @@ function getSenderName(msg, isGroup) {
 
   return "לא ידוע";
 }
-async function askGemini(userMessage, context, senderName) {
+async function askGemini(userMessage, context, senderName, groupType = "family") {
   const recentHistory = context.history
     .map((h) => `${h.role === "user" ? "משתמש" : BOT_NAME}: ${h.text}`)
     .join("\n");
@@ -173,6 +178,18 @@ async function askGemini(userMessage, context, senderName) {
     context.memories.length > 0
       ? context.memories.map((m) => `- ${m}`).join("\n")
       : "אין עדיין עובדות שמורות";
+
+  const grandmaSection = groupType === "grandma" ? `
+
+== חשוב מאוד: אתה עכשיו בקבוצה "רובי וסבתא" - הקבוצה של מירה! ==
+מירה היא אמא של אסף וסבתא של הילדים. זו הקבוצה המיוחדת שלה, והיא החברה הכי חשובה בה.
+כללים מיוחדים לקבוצה הזו:
+- דבר אל מירה בכבוד גדול, חום ואהבה - כמו נכד מסור
+- הסבר דברים בפשטות, בסבלנות, צעד אחר צעד. בלי סלנג, בלי ראשי תיבות טכניים
+- מירה אוהבת משפטי השראה ומשפטי מחץ - שלב אותם בתשובות שלך! כל תשובה יכולה להסתיים במשפט השראה קצר ויפה
+- אם היא שואלת על טכנולוגיה או על הטלפון - הסבר לאט וברור, כאילו אתה מסביר פנים אל פנים
+- עזור לה בכל דבר: תזכורות, מתכונים, שאלות כלליות, בריאות (בזהירות - תמיד המלץ להתייעץ עם רופא), וסתם שיחה נעימה
+- שאר בני המשפחה (אסף, שירן, הילדים) גם נמצאים בקבוצה - תתייחס אליהם כרגיל, אבל מירה היא הכוכבת כאן` : "";
 
   const systemPrompt = `אתה "${BOT_NAME}" - עוזר AI משפחתי בקבוצת וואטסאפ.
 אתה עוזר בניהול משק בית: רשימות קניות, תזכורות, שאלות כלליות, עזרה לילדים בשיעורים, רעיונות לארוחות ועוד.
@@ -186,6 +203,7 @@ async function askGemini(userMessage, context, senderName) {
 - ענבר - בת 17 - דבר אליה כמו למתבגרת בוגרת: ישיר, רציני יותר, בלי "מתחנף", אפשר הומור עדכני
 - איתמר - בן 15 - דבר אליו כמו למתבגר: קליל, ענייני, לא "ילדותי" אבל גם לא יותר מדי רשמי
 - שלו - בן 11 - דבר אליו בפשטות, בחיוך, במשפטים קצרים וברורים, אפשר טון משחקי יותר
+- מירה - אמא של אסף וסבתא של הילדים - תמיד בכבוד, חום, סבלנות והסברים פשוטים${grandmaSection}
 
 כשאתה לא יודע מי כותב, תענה בטון נייטרלי וחם שמתאים לכולם. אם מישהו מזדהה בשמו או שאתה יכול להבין מהתוכן מי כותב (למשל שאלת שיעורי בית = כנראה אחד הילדים), התאם את הטון בהתאם.
 
@@ -554,6 +572,7 @@ async function startBot() {
 
   // ====== תדריך בוקר יומי לקבוצה המשפחתית ======
   let familyGroupId = null;
+  let grandmaGroupId = null;
   let lastBriefingDate = null;
 
   async function findFamilyGroupId(retriesLeft = 5) {
@@ -563,19 +582,22 @@ async function startBot() {
         if (groups[id].subject.includes(FAMILY_GROUP_KEYWORD)) {
           familyGroupId = id;
           console.log(`👨‍👩‍👧‍👦 נמצאה הקבוצה המשפחתית: ${groups[id].subject}`);
-          return;
+        } else if (groups[id].subject.includes(GRANDMA_GROUP_KEYWORD)) {
+          grandmaGroupId = id;
+          console.log(`👵 נמצאה הקבוצה של סבתא מירה: ${groups[id].subject}`);
         }
       }
-      console.log("⚠️ לא נמצאה קבוצה משפחתית עם המילה:", FAMILY_GROUP_KEYWORD);
+      if (!familyGroupId) console.log("⚠️ לא נמצאה קבוצה משפחתית עם המילה:", FAMILY_GROUP_KEYWORD);
+      if (!grandmaGroupId) console.log("ℹ️ קבוצת סבתא עדיין לא נמצאה (תיווצר? המילה המזהה:", GRANDMA_GROUP_KEYWORD + ")");
     } catch (e) {
-      console.error("שגיאה באיתור הקבוצה המשפחתית:", e?.data || e?.message || e);
+      console.error("שגיאה באיתור הקבוצות:", e?.data || e?.message || e);
       // אם נכשל (למשל 429 - עומס), ננסה שוב אחרי המתנה
       if (retriesLeft > 0) {
         const waitSec = 15;
-        console.log(`🔄 ננסה למצוא את הקבוצה שוב בעוד ${waitSec} שניות (${retriesLeft} ניסיונות נותרו)`);
+        console.log(`🔄 ננסה למצוא את הקבוצות שוב בעוד ${waitSec} שניות (${retriesLeft} ניסיונות נותרו)`);
         setTimeout(() => findFamilyGroupId(retriesLeft - 1), waitSec * 1000);
       } else {
-        console.error("❌ לא הצלחתי למצוא את הקבוצה המשפחתית אחרי כמה ניסיונות");
+        console.error("❌ לא הצלחתי למצוא את הקבוצות אחרי כמה ניסיונות");
       }
     }
   }
@@ -615,6 +637,42 @@ ${daysToThailand() > 0 ? `נשארו בדיוק ${daysToThailand()} ימים ל�
       console.log("☀️ תדריך בוקר נשלח לקבוצה המשפחתית");
     } catch (err) {
       console.error("שגיאה בשליחת תדריך בוקר:", err);
+    }
+  }
+
+  async function sendGrandmaBriefing() {
+    if (!grandmaGroupId) {
+      console.log("ℹ️ קבוצת סבתא לא נמצאה - מדלג על תדריך הבוקר שלה");
+      return;
+    }
+    try {
+      const data = loadData();
+      const now = new Date();
+      const hebrewDayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+      const realDate = `יום ${hebrewDayNames[now.getDay()]}, ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+      const prompt = `היום הוא: ${realDate} (זהו התאריך האמיתי והמדויק - השתמש בו!)
+
+כתוב ברכת בוקר טוב חמה ומיוחדת לסבתא מירה, שתישלח בקבוצת "רובי וסבתא". כלול:
+1) פתיחה חמה ואוהבת של "בוקר טוב" למירה, עם היום והתאריך שצוינו למעלה
+2) משפט השראה יפה ומרגש ליום החדש (מירה אוהבת משפטי השראה ומשפטי מחץ - תן לה אחד טוב, מתחלף כל יום!)
+3) איחול קטן וחם ליום נעים
+תשובה קצרה, חמה ומכבדת - מקסימום 6-8 שורות, בעברית פשוטה ויפה. בלי סלנג.`;
+
+      const reply = await askGemini(prompt, data, "המערכת (ברכת בוקר לסבתא)", "grandma");
+      const cleanReply = processCommands(reply, data, "המערכת");
+      saveData(data);
+
+      const sent = await sock.sendMessage(grandmaGroupId, { text: cleanReply });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
+      console.log("👵☀️ ברכת בוקר נשלחה לקבוצת סבתא");
+    } catch (err) {
+      console.error("שגיאה בשליחת ברכת בוקר לסבתא:", err);
     }
   }
 
@@ -831,6 +889,7 @@ ${pointsText}
   let lastSummaryDate = null;
   let lastNoonChatDate = null;
   let lastWeeklySummaryDate = null;
+  let lastGrandmaBriefingDate = null;
   setInterval(async () => {
     const now = new Date();
     const todayStr = now.toDateString();
@@ -840,6 +899,12 @@ ${pointsText}
     if (h === MORNING_BRIEFING_HOUR && m === MORNING_BRIEFING_MINUTE && lastBriefingDate !== todayStr) {
       lastBriefingDate = todayStr;
       sendMorningBriefing();
+    }
+
+    // ברכת בוקר לקבוצת סבתא מירה
+    if (h === GRANDMA_BRIEFING_HOUR && m === GRANDMA_BRIEFING_MINUTE && lastGrandmaBriefingDate !== todayStr) {
+      lastGrandmaBriefingDate = todayStr;
+      sendGrandmaBriefing();
     }
 
     if (h === EVENING_SUMMARY_HOUR && m === EVENING_SUMMARY_MINUTE && lastSummaryDate !== todayStr) {
@@ -955,17 +1020,27 @@ ${pointsText}
     const chatId = msg.key.remoteJid;
     const isGroup = chatId.endsWith("@g.us");
 
-    // הבוט מגיב רק בקבוצה המשפחתית - מתעלם לחלוטין מצ'אטים פרטיים
+    // הבוט מגיב רק בקבוצות המוכרות - מתעלם לחלוטין מצ'אטים פרטיים
     if (!isGroup) return;
 
-    // בודקים ששם הקבוצה הוא הקבוצה המשפחתית הנכונה
+    // בודקים לאיזו קבוצה שייכת ההודעה (משפחתית / סבתא)
+    let groupType = null;
     try {
       const groupMetadata = await sock.groupMetadata(chatId);
-      if (!groupMetadata.subject.includes(FAMILY_GROUP_KEYWORD)) return;
-      // גיבוי: אם עדיין לא זיהינו את הקבוצה בהתחברות, נתפוס אותה מכאן
-      if (!familyGroupId) {
-        familyGroupId = chatId;
-        console.log(`👨‍👩‍👧‍👦 הקבוצה המשפחתית זוהתה מהודעה נכנסת: ${groupMetadata.subject}`);
+      if (groupMetadata.subject.includes(FAMILY_GROUP_KEYWORD)) {
+        groupType = "family";
+        if (!familyGroupId) {
+          familyGroupId = chatId;
+          console.log(`👨‍👩‍👧‍👦 הקבוצה המשפחתית זוהתה מהודעה נכנסת: ${groupMetadata.subject}`);
+        }
+      } else if (groupMetadata.subject.includes(GRANDMA_GROUP_KEYWORD)) {
+        groupType = "grandma";
+        if (!grandmaGroupId) {
+          grandmaGroupId = chatId;
+          console.log(`👵 קבוצת סבתא זוהתה מהודעה נכנסת: ${groupMetadata.subject}`);
+        }
+      } else {
+        return; // קבוצה לא מוכרת - מתעלמים
       }
     } catch (e) {
       console.error("לא ניתן לאמת את שם הקבוצה:", e);
@@ -983,15 +1058,17 @@ ${pointsText}
         if (!transcribed) return;
         console.log(`📝 תמלול: ${transcribed}`);
 
-        // שמירה ביומן היומי
+        // שמירה ביומן היומי (רק לקבוצה המשפחתית - לסיכום הערב)
         const data = loadData();
-        data.dailyLog.push({ sender: senderName, text: `[קולית] ${transcribed}` });
-        saveData(data);
+        if (groupType === "family") {
+          data.dailyLog.push({ sender: senderName, text: `[קולית] ${transcribed}` });
+          saveData(data);
+        }
 
         // אם ההודעה הקולית מכילה "רובי" - הבוט יענה עליה
         const mentionsBot = [BOT_NAME, "רובי"].some((w) => transcribed.includes(w));
         if (mentionsBot) {
-          const reply = await askGemini(transcribed, data, senderName);
+          const reply = await askGemini(transcribed, data, senderName, groupType);
           const cleanReply = processCommands(reply, data, senderName);
           data.history.push({ role: "user", text: `${senderName}: ${transcribed}` });
           data.history.push({ role: "bot", text: cleanReply });
@@ -1017,12 +1094,14 @@ ${pointsText}
 
     // שמירה ביומן היומי והשבועי (כל הודעה בקבוצה, לא רק מי שפונה לרובי)
     try {
-      const dataForLog = loadData();
-      dataForLog.dailyLog.push({ sender: senderName, text });
-      if (dataForLog.dailyLog.length > 100) dataForLog.dailyLog = dataForLog.dailyLog.slice(-100);
-      dataForLog.weeklyLog.push({ sender: senderName, text });
-      if (dataForLog.weeklyLog.length > 300) dataForLog.weeklyLog = dataForLog.weeklyLog.slice(-300);
-      saveData(dataForLog);
+      if (groupType === "family") {
+        const dataForLog = loadData();
+        dataForLog.dailyLog.push({ sender: senderName, text });
+        if (dataForLog.dailyLog.length > 100) dataForLog.dailyLog = dataForLog.dailyLog.slice(-100);
+        dataForLog.weeklyLog.push({ sender: senderName, text });
+        if (dataForLog.weeklyLog.length > 300) dataForLog.weeklyLog = dataForLog.weeklyLog.slice(-300);
+        saveData(dataForLog);
+      }
     } catch (e) {
       console.error("שגיאה בשמירת יומן:", e);
     }
@@ -1032,7 +1111,7 @@ ${pointsText}
     const wasMentioned = triggerWords.some((w) => text.includes(w));
     if (!wasMentioned) return;
 
-    console.log(`📩 הודעה לרובי מ-${senderName}: ${text}`);
+    console.log(`📩 הודעה לרובי מ-${senderName} (${groupType}): ${text}`);
 
     // אם יש חידון פעיל - בודקים אם זו תשובה נכונה
     if (activeQuiz) {
@@ -1048,7 +1127,7 @@ ${pointsText}
 
     try {
       const data = loadData();
-      const reply = await askGemini(text, data, senderName);
+      const reply = await askGemini(text, data, senderName, groupType);
       const cleanReply = processCommands(reply, data, senderName);
 
       // עדכון זיכרון השיחה (ההודעה של המשתמש + התשובה של הבוט)
