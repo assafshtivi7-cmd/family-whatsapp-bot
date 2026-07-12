@@ -526,6 +526,14 @@ async function transcribeVoiceMessage(msg) {
 }
 
 // ====== חיבור לוואטסאפ ======
+// ====== מצב גלובלי משותף (שורד התחברויות מחדש) ======
+let currentSock = null; // החיבור העדכני לוואטסאפ - מתעדכן בכל התחברות מחדש
+let schedulerStarted = false; // מבטיח שהמתזמן נוצר פעם אחת בלבד
+const botSentMessageIds = new Set();
+let familyGroupId = null;
+let grandmaGroupId = null;
+let activeQuiz = null; // { question, answer, askedAt }
+
 async function startBot() {
   console.log("🔄 מתחיל להתחבר לוואטסאפ...");
   const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
@@ -567,17 +575,15 @@ async function startBot() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  // עוקב אחרי הודעות ששלח הבוט עצמו, כדי לא להגיב לעצמו (ולמנוע לופ אינסופי)
-  const botSentMessageIds = new Set();
+  // מעדכן את החיבור הגלובלי - כך המתזמן תמיד משתמש בחיבור החי ביותר
+  currentSock = sock;
 
   // ====== תדריך בוקר יומי לקבוצה המשפחתית ======
-  let familyGroupId = null;
-  let grandmaGroupId = null;
   let lastBriefingDate = null;
 
   async function findFamilyGroupId(retriesLeft = 5) {
     try {
-      const groups = await sock.groupFetchAllParticipating();
+      const groups = await currentSock.groupFetchAllParticipating();
       for (const id in groups) {
         if (groups[id].subject.includes(FAMILY_GROUP_KEYWORD)) {
           familyGroupId = id;
@@ -626,7 +632,7 @@ ${daysToThailand() > 0 ? `נשארו בדיוק ${daysToThailand()} ימים ל�
       const cleanReply = processCommands(reply, data, "המערכת");
       saveData(data);
 
-      const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
+      const sent = await currentSock.sendMessage(familyGroupId, { text: cleanReply });
       if (sent?.key?.id) {
         botSentMessageIds.add(sent.key.id);
         if (botSentMessageIds.size > 50) {
@@ -662,7 +668,7 @@ ${daysToThailand() > 0 ? `נשארו בדיוק ${daysToThailand()} ימים ל�
       const cleanReply = processCommands(reply, data, "המערכת");
       saveData(data);
 
-      const sent = await sock.sendMessage(grandmaGroupId, { text: cleanReply });
+      const sent = await currentSock.sendMessage(grandmaGroupId, { text: cleanReply });
       if (sent?.key?.id) {
         botSentMessageIds.add(sent.key.id);
         if (botSentMessageIds.size > 50) {
@@ -707,7 +713,7 @@ ${daysToThailand() > 0 ? `נשארו בדיוק ${daysToThailand()} ימים ל�
       data.dailyLog = [];
       saveData(data);
 
-      const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
+      const sent = await currentSock.sendMessage(familyGroupId, { text: cleanReply });
       if (sent?.key?.id) {
         botSentMessageIds.add(sent.key.id);
         if (botSentMessageIds.size > 50) {
@@ -737,7 +743,7 @@ ${daysToThailand() > 0 ? `נשארו בדיוק ${daysToThailand()} ימים ל�
     try {
       const msgIndex = DOG_WALK_HOURS.indexOf(hour);
       const text = dogWalkMessages[msgIndex] || dogWalkMessages[0];
-      const sent = await sock.sendMessage(familyGroupId, { text });
+      const sent = await currentSock.sendMessage(familyGroupId, { text });
       if (sent?.key?.id) {
         botSentMessageIds.add(sent.key.id);
         if (botSentMessageIds.size > 50) {
@@ -765,7 +771,7 @@ ${daysToThailand() > 0 ? `נשארו בדיוק ${daysToThailand()} ימים ל�
       const cleanReply = processCommands(reply, data, "המערכת");
       saveData(data);
 
-      const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
+      const sent = await currentSock.sendMessage(familyGroupId, { text: cleanReply });
       if (sent?.key?.id) {
         botSentMessageIds.add(sent.key.id);
         if (botSentMessageIds.size > 50) {
@@ -827,7 +833,7 @@ ${pointsText}
       data.points = {};
       saveData(data);
 
-      const sent = await sock.sendMessage(familyGroupId, { text: cleanReply });
+      const sent = await currentSock.sendMessage(familyGroupId, { text: cleanReply });
       if (sent?.key?.id) {
         botSentMessageIds.add(sent.key.id);
         if (botSentMessageIds.size > 50) {
@@ -842,7 +848,7 @@ ${pointsText}
   }
 
   // ====== חידון משפחתי ======
-  let activeQuiz = null; // { question, answer, askedAt }
+  // (activeQuiz מוגדר גלובלית למעלה)
 
   async function startQuiz(chatId) {
     try {
@@ -859,14 +865,14 @@ ${pointsText}
       activeQuiz = { question: quiz.question, answer: quiz.answer.toLowerCase(), askedAt: Date.now() };
 
       const text = `🎮 חידון משפחתי!\n\n❓ ${quiz.question}\n\nמי יודע? כתבו את התשובה! (רמז: כתבו "רובי" עם התשובה)`;
-      const sent = await sock.sendMessage(chatId, { text });
+      const sent = await currentSock.sendMessage(chatId, { text });
       if (sent?.key?.id) {
         botSentMessageIds.add(sent.key.id);
       }
       console.log(`🎮 חידון התחיל: ${quiz.question}`);
     } catch (err) {
       console.error("שגיאה בהתחלת חידון:", err);
-      await sock.sendMessage(chatId, { text: "אופס, לא הצלחתי ליצור חידה כרגע 😅 נסו שוב!" });
+      await currentSock.sendMessage(chatId, { text: "אופס, לא הצלחתי ליצור חידה כרגע 😅 נסו שוב!" });
     }
   }
 
@@ -876,7 +882,7 @@ ${pointsText}
     const cleaned = text.toLowerCase();
     if (cleaned.includes(activeQuiz.answer)) {
       const winMsg = `🎉 כל הכבוד ${senderName}! תשובה נכונה: "${activeQuiz.answer}"! 🏆`;
-      const sent = await sock.sendMessage(chatId, { text: winMsg });
+      const sent = await currentSock.sendMessage(chatId, { text: winMsg });
       if (sent?.key?.id) botSentMessageIds.add(sent.key.id);
       console.log(`🏆 ${senderName} ענה נכון בחידון`);
       activeQuiz = null;
@@ -886,6 +892,10 @@ ${pointsText}
   }
 
   // בודק כל דקה אם הגיע הזמן לשלוח תדריך בוקר, סיכום ערב, תזכורת מקס, או תזכורת מתוזמנת
+  // חשוב: המתזמן נוצר פעם אחת בלבד, גם אם החיבור מתחדש (startBot נקרא שוב)
+  if (!schedulerStarted) {
+  schedulerStarted = true;
+
   let lastSummaryDate = null;
   let lastNoonChatDate = null;
   let lastWeeklySummaryDate = null;
@@ -953,7 +963,7 @@ ${pointsText}
         const data = loadData();
         let changed = false;
         const sendReminder = async (content, prefix = "⏰ תזכורת!") => {
-          const sent = await sock.sendMessage(familyGroupId, { text: `${prefix}\n\n${content}` });
+          const sent = await currentSock.sendMessage(familyGroupId, { text: `${prefix}\n\n${content}` });
           if (sent?.key?.id) {
             botSentMessageIds.add(sent.key.id);
             if (botSentMessageIds.size > 50) {
@@ -1011,6 +1021,7 @@ ${pointsText}
       }
     }
   }, 60 * 1000);
+  } // סוף בלוק המתזמן החד-פעמי
 
   // ====== טיפול בהודעות נכנסות ======
   sock.ev.on("messages.upsert", async ({ messages }) => {
