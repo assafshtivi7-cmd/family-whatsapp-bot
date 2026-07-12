@@ -890,11 +890,24 @@ ${pointsText}
   let lastNoonChatDate = null;
   let lastWeeklySummaryDate = null;
   let lastGrandmaBriefingDate = null;
+  let lastGroupRetry = 0;
   setInterval(async () => {
     const now = new Date();
     const todayStr = now.toDateString();
     const h = now.getHours();
     const m = now.getMinutes();
+
+    // רשת ביטחון: אם הקבוצה המשפחתית עדיין לא נמצאה - ננסה שוב כל 5 דקות
+    if (!familyGroupId && Date.now() - lastGroupRetry > 5 * 60 * 1000) {
+      lastGroupRetry = Date.now();
+      console.log("🔄 הקבוצה המשפחתית עדיין לא נמצאה - מנסה לאתר שוב...");
+      findFamilyGroupId(1);
+    }
+
+    // דופק שעתי - כדי שנוכל לדעת בלוג אם המתזמן היה ער בשעה מסוימת
+    if (m === 0) {
+      console.log(`💓 דופק ${h}:00 | קבוצה משפחתית: ${familyGroupId ? "מחוברת" : "❌ חסרה"} | קבוצת סבתא: ${grandmaGroupId ? "מחוברת" : "לא נמצאה"}`);
+    }
 
     if (h === MORNING_BRIEFING_HOUR && m === MORNING_BRIEFING_MINUTE && lastBriefingDate !== todayStr) {
       lastBriefingDate = todayStr;
