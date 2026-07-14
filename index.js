@@ -42,6 +42,34 @@ function daysToThailand() {
   return diff;
 }
 
+// בודק אם הגיע זמן לפעולה מתוזמנת, כולל "חלון השלמה" -
+// אם הטלפון היה קפוא בשעה המדויקת, הפעולה תישלח באיחור ברגע שהוא מתעורר (עד graceMinutes דקות אחרי)
+function isDue(now, targetH, targetM, graceMinutes) {
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const target = targetH * 60 + targetM;
+  return nowMin >= target && nowMin < target + graceMinutes;
+}
+
+// רישום קבוע (שורד הפעלות מחדש) של מה כבר נשלח היום - מונע כפילויות
+function wasSentToday(key) {
+  try {
+    const d = loadData();
+    return d.sentLog && d.sentLog[key] === new Date().toDateString();
+  } catch {
+    return false;
+  }
+}
+function markSent(key) {
+  try {
+    const d = loadData();
+    if (!d.sentLog) d.sentLog = {};
+    d.sentLog[key] = new Date().toDateString();
+    saveData(d);
+  } catch (e) {
+    console.error("שגיאה ברישום שליחה:", e);
+  }
+}
+
 // מיפוי מספרי טלפון (בפורמט בינלאומי, בלי +, למשל "972501234567") לשם בן המשפחה
 // משמש בעיקר לצ'אטים פרטיים. בקבוצה, וואטסאפ לפעמים מסתיר את המספר האמיתי (LID),
 // אז יש גם זיהוי גיבוי לפי שם הפרופיל - ראה FAMILY_NAME_VARIANTS למטה.
@@ -919,41 +947,43 @@ ${pointsText}
       console.log(`💓 דופק ${h}:00 | קבוצה משפחתית: ${familyGroupId ? "מחוברת" : "❌ חסרה"} | קבוצת סבתא: ${grandmaGroupId ? "מחוברת" : "לא נמצאה"}`);
     }
 
-    if (h === MORNING_BRIEFING_HOUR && m === MORNING_BRIEFING_MINUTE && lastBriefingDate !== todayStr) {
-      lastBriefingDate = todayStr;
+    if (isDue(now, MORNING_BRIEFING_HOUR, MORNING_BRIEFING_MINUTE, 240) && !wasSentToday("morning")) {
+      markSent("morning");
       sendMorningBriefing();
     }
 
     // ברכת בוקר לקבוצת סבתא מירה
-    if (h === GRANDMA_BRIEFING_HOUR && m === GRANDMA_BRIEFING_MINUTE && lastGrandmaBriefingDate !== todayStr) {
-      lastGrandmaBriefingDate = todayStr;
+    if (isDue(now, GRANDMA_BRIEFING_HOUR, GRANDMA_BRIEFING_MINUTE, 240) && !wasSentToday("grandma")) {
+      markSent("grandma");
       sendGrandmaBriefing();
     }
 
-    if (h === EVENING_SUMMARY_HOUR && m === EVENING_SUMMARY_MINUTE && lastSummaryDate !== todayStr) {
-      lastSummaryDate = todayStr;
+    if (isDue(now, EVENING_SUMMARY_HOUR, EVENING_SUMMARY_MINUTE, 150) && !wasSentToday("evening")) {
+      markSent("evening");
       sendEveningSummary();
     }
 
-    // תזכורות מקס ב-13:00 וב-16:00
-    if (m === 0 && DOG_WALK_HOURS.includes(h)) {
-      sendDogWalkReminder(h);
+    // תזכורות מקס ב-13:00 וב-16:00 (עם חלון השלמה של שעה וחצי)
+    for (const dogHour of DOG_WALK_HOURS) {
+      if (isDue(now, dogHour, 0, 90) && !wasSentToday(`dog${dogHour}`)) {
+        markSent(`dog${dogHour}`);
+        sendDogWalkReminder(dogHour);
+      }
     }
 
     // שיחת צהריים קלילה
-    if (h === NOON_CHAT_HOUR && m === NOON_CHAT_MINUTE && lastNoonChatDate !== todayStr) {
-      lastNoonChatDate = todayStr;
+    if (isDue(now, NOON_CHAT_HOUR, NOON_CHAT_MINUTE, 120) && !wasSentToday("noon")) {
+      markSent("noon");
       sendNoonChat();
     }
 
     // סיכום שבועי בשישי ב-14:00
     if (
       now.getDay() === WEEKLY_SUMMARY_DAY &&
-      h === WEEKLY_SUMMARY_HOUR &&
-      m === WEEKLY_SUMMARY_MINUTE &&
-      lastWeeklySummaryDate !== todayStr
+      isDue(now, WEEKLY_SUMMARY_HOUR, WEEKLY_SUMMARY_MINUTE, 240) &&
+      !wasSentToday("weekly")
     ) {
-      lastWeeklySummaryDate = todayStr;
+      markSent("weekly");
       sendWeeklySummary();
     }
 
@@ -974,16 +1004,17 @@ ${pointsText}
           console.log(`⏰ תזכורת נשלחה: ${content}`);
         };
 
-        // 1. תזכורות של "היום" (הפורמט הישן)
+        // 1. תזכורות של "היום" (הפורמט הישן) - נשלחות גם באיחור אם הטלפון היה קפוא
+        const nowMin = h * 60 + m;
         const pending = data.scheduledReminders || [];
         const toFire = pending.filter(
-          (r) => !r.type && r.date === todayStr && r.hour === h && r.minute === m
+          (r) => !r.type && r.date === todayStr && nowMin >= r.hour * 60 + r.minute
         );
         for (const r of toFire) await sendReminder(r.content);
 
-        // 2. תזכורות לתאריך עתידי (DD/MM)
+        // 2. תזכורות לתאריך עתידי (DD/MM) - גם באיחור
         const dateToFire = pending.filter(
-          (r) => r.type === "date" && r.day === now.getDate() && r.month === now.getMonth() + 1 && r.hour === h && r.minute === m
+          (r) => r.type === "date" && r.day === now.getDate() && r.month === now.getMonth() + 1 && nowMin >= r.hour * 60 + r.minute
         );
         for (const r of dateToFire) await sendReminder(r.content, "📆 תזכורת!");
 
@@ -994,14 +1025,23 @@ ${pointsText}
           changed = true;
         }
 
-        // 3. תזכורות שבועיות חוזרות (לא נמחקות אחרי שליחה)
+        // 3. תזכורות שבועיות חוזרות (לא נמחקות - עם חלון השלמה של 90 דקות והגנה מכפילות)
         const weekly = (data.weeklyReminders || []).filter(
-          (r) => r.dayOfWeek === now.getDay() && r.hour === h && r.minute === m
+          (r) =>
+            r.dayOfWeek === now.getDay() &&
+            nowMin >= r.hour * 60 + r.minute &&
+            nowMin < r.hour * 60 + r.minute + 90 &&
+            r.lastFired !== todayStr
         );
-        for (const r of weekly) await sendReminder(r.content, "🔁 תזכורת שבועית!");
+        for (const r of weekly) {
+          await sendReminder(r.content, "🔁 תזכורת שבועית!");
+          r.lastFired = todayStr;
+          changed = true;
+        }
 
-        // 4. בדיקת ימי הולדת - פעם ביום ב-08:00
-        if (h === 8 && m === 0) {
+        // 4. בדיקת ימי הולדת - פעם ביום, החל מ-08:00 (עם השלמה עד הצהריים)
+        if (isDue(now, 8, 0, 300) && !wasSentToday("birthdays")) {
+          markSent("birthdays");
           const todayDM = `${now.getDate()}/${now.getMonth() + 1}`;
           const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
           const tomorrowDM = `${tomorrow.getDate()}/${tomorrow.getMonth() + 1}`;
