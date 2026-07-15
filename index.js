@@ -171,6 +171,7 @@ function loadData() {
     if (!data.activePoll) data.activePoll = null;
     if (!data.friendsLog) data.friendsLog = [];
     if (data.friendsMuted === undefined) data.friendsMuted = false;
+    if (!data.historyByGroup) data.historyByGroup = { family: [], grandma: [], friends: [] };
     return data;
   } catch {
     return {
@@ -183,6 +184,17 @@ function loadData() {
 }
 function saveData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+// מוסיף חילוף דברים להיסטוריה הנפרדת של הקבוצה הרלוונטית
+function pushGroupHistory(data, groupType, userText, botText) {
+  if (!data.historyByGroup) data.historyByGroup = { family: [], grandma: [], friends: [] };
+  if (!data.historyByGroup[groupType]) data.historyByGroup[groupType] = [];
+  data.historyByGroup[groupType].push({ role: "user", text: userText });
+  data.historyByGroup[groupType].push({ role: "bot", text: botText });
+  if (data.historyByGroup[groupType].length > MAX_HISTORY) {
+    data.historyByGroup[groupType] = data.historyByGroup[groupType].slice(-MAX_HISTORY);
+  }
 }
 
 // מזהה מי שלח את ההודעה
@@ -213,7 +225,8 @@ function getSenderName(msg, isGroup) {
   return "לא ידוע";
 }
 async function askGemini(userMessage, context, senderName, groupType = "family") {
-  const recentHistory = context.history
+  const groupHistory = (context.historyByGroup && context.historyByGroup[groupType]) || [];
+  const recentHistory = groupHistory
     .map((h) => `${h.role === "user" ? "משתמש" : BOT_NAME}: ${h.text}`)
     .join("\n");
 
@@ -1323,9 +1336,7 @@ ${logText}
         if (mentionsBot) {
           const analysis = await analyzeImageMessage(msg, imageCaption, data, senderName, groupType);
           if (analysis) {
-            data.history.push({ role: "user", text: `${senderName}: [שלח תמונה] ${imageCaption}` });
-            data.history.push({ role: "bot", text: analysis });
-            if (data.history.length > MAX_HISTORY) data.history = data.history.slice(-MAX_HISTORY);
+            pushGroupHistory(data, groupType, `${senderName}: [שלח תמונה] ${imageCaption}`, analysis);
             saveData(data);
 
             const sent = await sock.sendMessage(chatId, { text: analysis });
@@ -1365,9 +1376,7 @@ ${logText}
         if (mentionsBot) {
           const reply = await askGemini(transcribed, data, senderName, groupType);
           const cleanReply = processCommands(reply, data, senderName);
-          data.history.push({ role: "user", text: `${senderName}: ${transcribed}` });
-          data.history.push({ role: "bot", text: cleanReply });
-          if (data.history.length > MAX_HISTORY) data.history = data.history.slice(-MAX_HISTORY);
+          pushGroupHistory(data, groupType, `${senderName}: ${transcribed}`, cleanReply);
           saveData(data);
 
           const sent = await sock.sendMessage(chatId, { text: `🎤 שמעתי: "${transcribed}"\n\n${cleanReply}` });
@@ -1457,11 +1466,7 @@ ${logText}
       const cleanReply = processCommands(reply, data, senderName);
 
       // עדכון זיכרון השיחה (ההודעה של המשתמש + התשובה של הבוט)
-      data.history.push({ role: "user", text: `${senderName}: ${text}` });
-      data.history.push({ role: "bot", text: cleanReply });
-      if (data.history.length > MAX_HISTORY) {
-        data.history = data.history.slice(-MAX_HISTORY);
-      }
+      pushGroupHistory(data, groupType, `${senderName}: ${text}`, cleanReply);
 
       saveData(data);
 
