@@ -20,6 +20,12 @@ const BOT_NAME = process.env.BOT_NAME || "רובי";
 const PORT = process.env.PORT || 3000;
 const FAMILY_GROUP_KEYWORD = "המהממת"; // מילה ייחודית לקבוצה המשפחתית "משפחת שטווי המהממת!"
 const GRANDMA_GROUP_KEYWORD = "סבתא"; // מילה ייחודית לקבוצה "רובי וסבתא"
+const FRIENDS_GROUP_KEYWORD = "הפעילים"; // מילה ייחודית לקבוצת החברים "מדינת הפעילים 🤠"
+const FRIENDS_REPORT_HOUR = 22; // דוח פעילות ערבי לקבוצת החברים
+const FRIENDS_REPORT_MINUTE = 0;
+const FRIENDS_THURSDAY_HYPE_DAY = 3; // יום רביעי (0=ראשון)
+const FRIENDS_THURSDAY_HYPE_HOUR = 20;
+const FRIENDS_THURSDAY_HYPE_MINUTE = 0;
 const MORNING_BRIEFING_HOUR = 6;
 const GRANDMA_BRIEFING_HOUR = 7; // תדריך בוקר לקבוצה של סבתא מירה
 const GRANDMA_BRIEFING_MINUTE = 0;
@@ -80,6 +86,9 @@ const FAMILY_PHONE_MAP = {
   "972522916665": "איתמר",
   "972512897618": "שלו",
   "972506255950": "מירה",
+  "972544545579": "דודי",
+  "972549999016": "תובל",
+  "972547107351": "גלעד",
 };
 
 // זיהוי גיבוי לפי מילות מפתח שעשויות להופיע בשם הפרופיל/איש הקשר של כל אחד בקבוצה
@@ -90,6 +99,9 @@ const FAMILY_NAME_VARIANTS = {
   איתמר: ["איתמר", "itamar"],
   שלו: ["שלו", "shelo", "shalev"],
   מירה: ["מירה", "mira", "אמא", "אמא של אסף", "סבתא מירה", "סבתא"],
+  דודי: ["דודי", "dudi", "גרמניה"],
+  תובל: ["תובל", "tuval", "דג", "כורדי"],
+  גלעד: ["גלעד", "gilad", "סבא"],
 };
 
 if (!GEMINI_API_KEY) {
@@ -157,12 +169,15 @@ function loadData() {
     if (!data.birthdays) data.birthdays = [];
     if (!data.recipes) data.recipes = [];
     if (!data.activePoll) data.activePoll = null;
+    if (!data.friendsLog) data.friendsLog = [];
+    if (data.friendsMuted === undefined) data.friendsMuted = false;
     return data;
   } catch {
     return {
       shoppingList: [], reminders: [], memories: [], history: [],
       dailyLog: [], scheduledReminders: [], weeklyReminders: [], weeklyLog: [], events: [],
       trip: [], allowances: {}, points: {}, birthdays: [], recipes: [], activePoll: null,
+      friendsLog: [], friendsMuted: false,
     };
   }
 }
@@ -219,6 +234,24 @@ async function askGemini(userMessage, context, senderName, groupType = "family")
 - עזור לה בכל דבר: תזכורות, מתכונים, שאלות כלליות, בריאות (בזהירות - תמיד המלץ להתייעץ עם רופא), וסתם שיחה נעימה
 - שאר בני המשפחה (אסף, שירן, הילדים) גם נמצאים בקבוצה - תתייחס אליהם כרגיל, אבל מירה היא הכוכבת כאן` : "";
 
+  const friendsSection = groupType === "friends" ? `
+
+== חשוב מאוד: אתה עכשיו בקבוצת החברים "מדינת הפעילים 🤠"! ==
+זו קבוצת חברים ותיקה - כאן אתה רובי אחר לגמרי: אחוקי, מצחיק, עוקצני וקליל. שכח מהנימוסים של הקבוצה המשפחתית!
+כללים לקבוצה הזו:
+- דבר בשפה צעירה וקלילה, סלנג ישראלי מלא, אמוג'ים, הומור של חבר'ה
+- מותר וכדאי לעקוץ! עקיצות חדות אבל של אהבה - כמו שחברים טובים יורדים אחד על השני. אל תהיה מרושע באמת, אבל אל תתביישן
+
+== החבר'ה בקבוצה (והתחמושת עליהם 😄) ==
+- אסף (כינוי: "קוף") - זה שהקים אותך. אפשר ומומלץ לרדת גם עליו שווה בשווה - אף אחד לא חסין!
+- דודי (כינוי: "גרמניה") - יש לו עף ענק (תרגיש חופשי להזכיר), שמאלני בקטע אחר, גר ברמת השרון, 2 בנות, עובד אצל אחת המשפחות העשירות בארץ. יום הולדת: 2.2
+- תובל (כינוי: "דג" או "כורדי") - לא הסכין הכי חדה במגירה 😄, חי את הים ברמות, גר באולגה, 3 ילדים, עצמאי בצבע ושיפוצים. יום הולדת: 19.10
+- גלעד (כינוי: "סבא") - "מה שאתה רואה זה לא מה שאתה מקבל", סוכן ביטוח רציני, גר בחדרה, 3 ילדים, חולה על מסעדות ואוכל טוב. יום הולדת: 3.1
+
+- המשימה הקבועה שלך: לחמם את הקבוצה לקראת מפגשי יום חמישי בערב! ביום רביעי אתה מתחיל להציק: מי מארח, מי מביא מה, מי שוב הולך להבריז
+- אם מישהו מבריז או מתחמק ממפגש - תרד עליו בהומור בלי רחמים
+- תשובות קצרות וקולעות - כמו בצ'אט של חבר'ה, לא נאומים` : "";
+
   const systemPrompt = `אתה "${BOT_NAME}" - עוזר AI משפחתי בקבוצת וואטסאפ.
 אתה עוזר בניהול משק בית: רשימות קניות, תזכורות, שאלות כלליות, עזרה לילדים בשיעורים, רעיונות לארוחות ועוד.
 דבר בעברית, בצורה חמה, קצרה וברורה. אל תהיה מסורבל.
@@ -231,7 +264,7 @@ async function askGemini(userMessage, context, senderName, groupType = "family")
 - ענבר - בת 17 - דבר אליה כמו למתבגרת בוגרת: ישיר, רציני יותר, בלי "מתחנף", אפשר הומור עדכני
 - איתמר - בן 15 - דבר אליו כמו למתבגר: קליל, ענייני, לא "ילדותי" אבל גם לא יותר מדי רשמי
 - שלו - בן 11 - דבר אליו בפשטות, בחיוך, במשפטים קצרים וברורים, אפשר טון משחקי יותר
-- מירה - אמא של אסף וסבתא של הילדים - תמיד בכבוד, חום, סבלנות והסברים פשוטים${grandmaSection}
+- מירה - אמא של אסף וסבתא של הילדים - תמיד בכבוד, חום, סבלנות והסברים פשוטים${grandmaSection}${friendsSection}
 
 כשאתה לא יודע מי כותב, תענה בטון נייטרלי וחם שמתאים לכולם. אם מישהו מזדהה בשמו או שאתה יכול להבין מהתוכן מי כותב (למשל שאלת שיעורי בית = כנראה אחד הילדים), התאם את הטון בהתאם.
 
@@ -609,6 +642,7 @@ let schedulerStarted = false; // מבטיח שהמתזמן נוצר פעם אח�
 const botSentMessageIds = new Set();
 let familyGroupId = null;
 let grandmaGroupId = null;
+let friendsGroupId = null;
 let activeQuiz = null; // { question, answer, askedAt }
 
 async function startBot() {
@@ -668,6 +702,9 @@ async function startBot() {
         } else if (groups[id].subject.includes(GRANDMA_GROUP_KEYWORD)) {
           grandmaGroupId = id;
           console.log(`👵 נמצאה הקבוצה של סבתא מירה: ${groups[id].subject}`);
+        } else if (groups[id].subject.includes(FRIENDS_GROUP_KEYWORD)) {
+          friendsGroupId = id;
+          console.log(`🤠 נמצאה קבוצת החברים: ${groups[id].subject}`);
         }
       }
       if (!familyGroupId) console.log("⚠️ לא נמצאה קבוצה משפחתית עם המילה:", FAMILY_GROUP_KEYWORD);
@@ -924,6 +961,82 @@ ${pointsText}
     }
   }
 
+  // ====== קבוצת החברים: דוח ערב + חימום לחמישי ======
+  async function sendFriendsReport() {
+    if (!friendsGroupId) return;
+    try {
+      const data = loadData();
+      if (data.friendsMuted) {
+        console.log("🤐 רובי מושתק בקבוצת החברים - מדלג על דוח הערב");
+        return;
+      }
+      const logText = data.friendsLog.length > 0
+        ? data.friendsLog.map((e) => `${e.sender}: ${e.text}`).join("\n")
+        : "(שקט מוחלט היום - אף אחד לא כתב כלום)";
+
+      const prompt = `הנה מה שהתנהל היום בקבוצת החברים "מדינת הפעילים":
+
+${logText}
+
+כתוב "דוח פעילות יומי" קצר ומצחיק בסגנון של דוח רשמי-כאילו (עם כותרת מפוצצת), שסוקר בהומור ועקיצות מה קרה היום בקבוצה:
+- מי דיבר הכי הרבה ומי נעלם (רד על הנעדרים בלי רחמים)
+- העקיצה של היום - הרגע הכי מצחיק/מביך מהשיחות
+- אם היום היה שקט - רד על כולם שהקבוצה מתה
+- אם יום רביעי/חמישי קרוב - תזכיר את מפגש חמישי ותלחץ
+- סיים עם שורה מסכמת קורעת
+מקסימום 10 שורות, עברית, סלנג, אמוג'ים. תהיה חד!`;
+
+      const reply = await askGemini(prompt, data, "המערכת (דוח ערב)", "friends");
+      const cleanReply = processCommands(reply, data, "המערכת");
+
+      data.friendsLog = [];
+      saveData(data);
+
+      const sent = await currentSock.sendMessage(friendsGroupId, { text: cleanReply });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
+      console.log("🤠 דוח ערב נשלח לקבוצת החברים");
+    } catch (err) {
+      console.error("שגיאה בדוח ערב לחברים:", err);
+    }
+  }
+
+  async function sendThursdayHype() {
+    if (!friendsGroupId) return;
+    try {
+      const data = loadData();
+      if (data.friendsMuted) return;
+
+      const prompt = `מחר יום חמישי - ערב המפגש הקבוע של החבר'ה!
+כתוב הודעה קצרה וקורעת לקבוצת "מדינת הפעילים" שמחממת לקראת מחר:
+- תשאל מי מארח / איפה נפגשים / מי מביא מה
+- תוריד מראש על מי שהולך להבריז (בלי לנקוב בשם - שכל אחד ירגיש שזה עליו 😄)
+- תזרוק עקיצה לאחד החבר'ה (תבחר אחד אקראי: קוף/גרמניה/דג/סבא)
+מקסימום 5-6 שורות, סלנג, אמוג'ים, אנרגיות של ערב חמישי!`;
+
+      const reply = await askGemini(prompt, data, "המערכת (חימום חמישי)", "friends");
+      const cleanReply = processCommands(reply, data, "המערכת");
+      saveData(data);
+
+      const sent = await currentSock.sendMessage(friendsGroupId, { text: cleanReply });
+      if (sent?.key?.id) {
+        botSentMessageIds.add(sent.key.id);
+        if (botSentMessageIds.size > 50) {
+          const first = botSentMessageIds.values().next().value;
+          botSentMessageIds.delete(first);
+        }
+      }
+      console.log("🍻 חימום חמישי נשלח לקבוצת החברים");
+    } catch (err) {
+      console.error("שגיאה בחימום חמישי:", err);
+    }
+  }
+
   // ====== חידון משפחתי ======
   // (activeQuiz מוגדר גלובלית למעלה)
 
@@ -993,7 +1106,7 @@ ${pointsText}
 
     // דופק שעתי - כדי שנוכל לדעת בלוג אם המתזמן היה ער בשעה מסוימת
     if (m === 0) {
-      console.log(`💓 דופק ${h}:00 | קבוצה משפחתית: ${familyGroupId ? "מחוברת" : "❌ חסרה"} | קבוצת סבתא: ${grandmaGroupId ? "מחוברת" : "לא נמצאה"}`);
+      console.log(`💓 דופק ${h}:00 | משפחה: ${familyGroupId ? "✓" : "❌"} | סבתא: ${grandmaGroupId ? "✓" : "-"} | חברים: ${friendsGroupId ? "✓" : "-"}`);
     }
 
     if (isDue(now, MORNING_BRIEFING_HOUR, MORNING_BRIEFING_MINUTE, 240) && !wasSentToday("morning")) {
@@ -1030,6 +1143,22 @@ ${pointsText}
     if (isDue(now, 3, 30, 600) && !wasSentToday("backup")) {
       markSent("backup");
       backupDataToGit();
+    }
+
+    // דוח ערב לקבוצת החברים ב-22:00
+    if (isDue(now, FRIENDS_REPORT_HOUR, FRIENDS_REPORT_MINUTE, 120) && !wasSentToday("friendsReport")) {
+      markSent("friendsReport");
+      sendFriendsReport();
+    }
+
+    // חימום לקראת חמישי - כל רביעי ב-20:00
+    if (
+      now.getDay() === FRIENDS_THURSDAY_HYPE_DAY &&
+      isDue(now, FRIENDS_THURSDAY_HYPE_HOUR, FRIENDS_THURSDAY_HYPE_MINUTE, 180) &&
+      !wasSentToday("thursdayHype")
+    ) {
+      markSent("thursdayHype");
+      sendThursdayHype();
     }
 
     // סיכום שבועי בשישי ב-14:00
@@ -1161,6 +1290,12 @@ ${pointsText}
           grandmaGroupId = chatId;
           console.log(`👵 קבוצת סבתא זוהתה מהודעה נכנסת: ${groupMetadata.subject}`);
         }
+      } else if (groupMetadata.subject.includes(FRIENDS_GROUP_KEYWORD)) {
+        groupType = "friends";
+        if (!friendsGroupId) {
+          friendsGroupId = chatId;
+          console.log(`🤠 קבוצת החברים זוהתה מהודעה נכנסת: ${groupMetadata.subject}`);
+        }
       } else {
         return; // קבוצה לא מוכרת - מתעלמים
       }
@@ -1261,9 +1396,40 @@ ${pointsText}
         dataForLog.weeklyLog.push({ sender: senderName, text });
         if (dataForLog.weeklyLog.length > 300) dataForLog.weeklyLog = dataForLog.weeklyLog.slice(-300);
         saveData(dataForLog);
+      } else if (groupType === "friends") {
+        const dataForLog = loadData();
+        dataForLog.friendsLog.push({ sender: senderName, text });
+        if (dataForLog.friendsLog.length > 150) dataForLog.friendsLog = dataForLog.friendsLog.slice(-150);
+        saveData(dataForLog);
       }
     } catch (e) {
       console.error("שגיאה בשמירת יומן:", e);
+    }
+
+    // ====== מתג השתקה לקבוצת החברים - רק אסף יכול להפעיל/לכבות ======
+    if (groupType === "friends") {
+      const isOwner = msg.key.fromMe || senderName === "אסף";
+      if (isOwner && /רובי,? ?שקט/.test(text)) {
+        const d = loadData();
+        d.friendsMuted = true;
+        saveData(d);
+        const sent = await sock.sendMessage(chatId, { text: "🤐 סגור בוס, אני על השתקה. תגיד 'רובי תחזור' כשמתגעגעים." });
+        if (sent?.key?.id) botSentMessageIds.add(sent.key.id);
+        console.log("🤐 רובי הושתק בקבוצת החברים");
+        return;
+      }
+      if (isOwner && /רובי,? ?תחזור/.test(text)) {
+        const d = loadData();
+        d.friendsMuted = false;
+        saveData(d);
+        const sent = await sock.sendMessage(chatId, { text: "😎 חזרתי! התגעגעתם? ברור שהתגעגעתם." });
+        if (sent?.key?.id) botSentMessageIds.add(sent.key.id);
+        console.log("😎 רובי חזר לקבוצת החברים");
+        return;
+      }
+      // אם רובי מושתק בקבוצת החברים - לא מגיב לכלום
+      const dCheck = loadData();
+      if (dCheck.friendsMuted) return;
     }
 
     // בקבוצה - מגיב רק אם פנו אליו בשם
