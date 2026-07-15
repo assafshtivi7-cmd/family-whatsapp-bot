@@ -553,6 +553,55 @@ async function transcribeVoiceMessage(msg) {
   }
 }
 
+// ====== ניתוח תמונה עם Gemini ======
+async function analyzeImageMessage(msg, caption, context, senderName, groupType) {
+  try {
+    const buffer = await downloadMediaMessage(msg, "buffer", {});
+    const base64Image = buffer.toString("base64");
+    const mimeType = msg.message.imageMessage?.mimetype || "image/jpeg";
+
+    const instruction = `${senderName} שלח/ה תמונה בקבוצה${caption ? ` עם הכיתוב: "${caption}"` : ""}.
+הסתכל על התמונה וענה בהתאם לבקשה. אם זה תרגיל/שיעורי בית - עזור לפתור צעד אחר צעד. אם זה מסמך - סכם את העיקר. אם זה תפריט בשפה זרה - תרגם. אם זו סתם תמונה יפה - תגיב בחום. ענה בעברית, קצר וברור.${groupType === "grandma" ? " זו הקבוצה של סבתא מירה - ענה בסבלנות, בפשטות ובחום, עם משפט השראה קטן בסוף." : ""}`;
+
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType, data: base64Image } },
+            { text: instruction },
+          ],
+        },
+      ],
+    });
+    return result.response.text().trim();
+  } catch (err) {
+    console.error("שגיאה בניתוח תמונה:", err);
+    return null;
+  }
+}
+
+// ====== גיבוי יומי של הזיכרון לגיטהאב ======
+const { exec } = require("child_process");
+function backupDataToGit() {
+  const dateStr = new Date().toLocaleDateString("he-IL");
+  exec(
+    `cd "${__dirname}" && git add data.json && git commit -m "גיבוי אוטומטי ${dateStr}" && git push`,
+    (err, stdout, stderr) => {
+      const output = (stdout || "") + (stderr || "");
+      if (err) {
+        if (/nothing to commit|nothing added/.test(output)) {
+          console.log("💾 גיבוי: אין שינויים חדשים לשמור");
+        } else {
+          console.error("💾❌ שגיאה בגיבוי לגיטהאב:", output.slice(0, 300));
+        }
+      } else {
+        console.log("💾✅ גיבוי data.json הועלה לגיטהאב בהצלחה");
+      }
+    }
+  );
+}
+
 // ====== חיבור לוואטסאפ ======
 // ====== מצב גלובלי משותף (שורד התחברויות מחדש) ======
 let currentSock = null; // החיבור העדכני לוואטסאפ - מתעדכן בכל התחברות מחדש
@@ -977,6 +1026,12 @@ ${pointsText}
       sendNoonChat();
     }
 
+    // גיבוי יומי של הזיכרון לגיטהאב ב-03:30 (עם השלמה עד הבוקר)
+    if (isDue(now, 3, 30, 600) && !wasSentToday("backup")) {
+      markSent("backup");
+      backupDataToGit();
+    }
+
     // סיכום שבועי בשישי ב-14:00
     if (
       now.getDay() === WEEKLY_SUMMARY_DAY &&
@@ -1072,14 +1127,17 @@ ${pointsText}
     // אם זו הודעה שאתה כתבת בעצמך מהטלפון (גם היא fromMe, כי הבוט מחובר למספר שלך) - עונים כרגיל.
     if (msg.key.fromMe && botSentMessageIds.has(msg.key.id)) return;
 
-    // זיהוי סוג ההודעה - טקסט או קולית
+    // זיהוי סוג ההודעה - טקסט, קולית או תמונה
     const isVoice = !!(msg.message.audioMessage && msg.message.audioMessage.ptt);
+    const isImage = !!msg.message.imageMessage;
+    const imageCaption = msg.message.imageMessage?.caption || "";
     const text =
       msg.message.conversation ||
       msg.message.extendedTextMessage?.text ||
+      imageCaption ||
       "";
 
-    if (!text && !isVoice) return;
+    if (!text && !isVoice && !isImage) return;
 
     const chatId = msg.key.remoteJid;
     const isGroup = chatId.endsWith("@g.us");
@@ -1113,6 +1171,44 @@ ${pointsText}
 
     const senderName = getSenderName(msg, isGroup);
     console.log(`🔍 DEBUG - pushName: ${msg.pushName} | זוהה כ: ${senderName}`);
+
+    // ====== טיפול בתמונה ======
+    if (isImage) {
+      console.log(`🖼️ תמונה התקבלה מ-${senderName}${imageCaption ? ` (כיתוב: ${imageCaption})` : ""}`);
+      try {
+        // שמירה ביומן היומי (רק לקבוצה המשפחתית)
+        const data = loadData();
+        if (groupType === "family") {
+          data.dailyLog.push({ sender: senderName, text: `[תמונה] ${imageCaption}` });
+          saveData(data);
+        }
+
+        // מגיבים לתמונה רק אם הכיתוב מזכיר את רובי
+        const mentionsBot = [BOT_NAME, "רובי"].some((w) => imageCaption.includes(w));
+        if (mentionsBot) {
+          const analysis = await analyzeImageMessage(msg, imageCaption, data, senderName, groupType);
+          if (analysis) {
+            data.history.push({ role: "user", text: `${senderName}: [שלח תמונה] ${imageCaption}` });
+            data.history.push({ role: "bot", text: analysis });
+            if (data.history.length > MAX_HISTORY) data.history = data.history.slice(-MAX_HISTORY);
+            saveData(data);
+
+            const sent = await sock.sendMessage(chatId, { text: analysis });
+            if (sent?.key?.id) {
+              botSentMessageIds.add(sent.key.id);
+              if (botSentMessageIds.size > 50) {
+                const first = botSentMessageIds.values().next().value;
+                botSentMessageIds.delete(first);
+              }
+            }
+            console.log("🖼️📤 תשובה על תמונה נשלחה");
+          }
+        }
+      } catch (err) {
+        console.error("שגיאה בטיפול בתמונה:", err);
+      }
+      return;
+    }
 
     // ====== טיפול בהודעה קולית ======
     if (isVoice) {
