@@ -91,6 +91,12 @@ const FAMILY_PHONE_MAP = {
   "972547107351": "גלעד",
 };
 
+// מיפוי לפי מזהה LID (המזהה האנונימי שוואטסאפ נותן בקבוצות במקום המספר - קבוע לכל אדם)
+// כשמישהו לא מזוהה, המזהה שלו יודפס בלוג - מוסיפים אותו לכאן פעם אחת וזהו
+const LID_MAP = {
+  // "123456789012345": "דודי",  <-- דוגמה, למלא לפי הלוג
+};
+
 // זיהוי גיבוי לפי מילות מפתח שעשויות להופיע בשם הפרופיל/איש הקשר של כל אחד בקבוצה
 const FAMILY_NAME_VARIANTS = {
   אסף: ["אסף", "assaf"],
@@ -99,7 +105,7 @@ const FAMILY_NAME_VARIANTS = {
   איתמר: ["איתמר", "itamar"],
   שלו: ["שלו", "shelo", "shalev"],
   מירה: ["מירה", "mira", "אמא", "אמא של אסף", "סבתא מירה", "סבתא"],
-  דודי: ["דודי", "dudi", "גרמניה"],
+  דודי: ["דודי", "dudi", "גרמניה", "dave", "Dave", "דייב"],
   תובל: ["תובל", "tuval", "דג", "כורדי"],
   גלעד: ["גלעד", "gilad", "סבא"],
 };
@@ -207,9 +213,13 @@ function getSenderName(msg, isGroup) {
     : msg.key.remoteJid;
 
   // ניסיון ראשון: מספר טלפון נקי (בעיקר בצ'אט פרטי)
-  const phone = senderJid?.split("@")[0]?.split(":")[0];
-  if (phone && FAMILY_PHONE_MAP[phone]) {
-    return FAMILY_PHONE_MAP[phone];
+  const rawId = senderJid?.split("@")[0]?.split(":")[0];
+  if (rawId && FAMILY_PHONE_MAP[rawId]) {
+    return FAMILY_PHONE_MAP[rawId];
+  }
+  // ניסיון שני: מזהה LID קבוע (בקבוצות שבהן וואטסאפ מסתיר את המספר)
+  if (rawId && LID_MAP[rawId]) {
+    return LID_MAP[rawId];
   }
 
   // ניסיון שני: שם הפרופיל בוואטסאפ (pushName)
@@ -266,6 +276,7 @@ async function askGemini(userMessage, context, senderName, groupType = "family")
 - גלעד (כינוי: "סבא") - "מה שאתה רואה זה לא מה שאתה מקבל", סוכן ביטוח, חדרה, 3 ילדים, חולה מסעדות. יום הולדת: 3.1
 
 - המשימה: לדחוף למפגשי חמישי. מי מארח, מי מבריז - בעקיצה קצרה
+- אם אתה לא בטוח ב-100% מי כתב לך - אל תנחש שם! פנה נייטרלי ("אחי", "גבר") במקום לקרוא למישהו בשם הלא נכון
 - אם שואלים אותך שאלה אמיתית (מידע, המלצה) - תן תשובה עניינית וקצרה, אפשר עם עקיצה קטנה בסוף` : "";
 
   const systemPrompt = `אתה "${BOT_NAME}" - עוזר AI משפחתי בקבוצת וואטסאפ.
@@ -380,7 +391,7 @@ ${recentHistory || "(זו ההודעה הראשונה בשיחה)"}
 }
 
 // עיבוד פקודות מהתשובה של Gemini (הוספה/הסרה מרשימה, זכירה/שכיחה של עובדות)
-function processCommands(text, data, senderName) {
+function processCommands(text, data, senderName, originChatId) {
   let cleanText = text;
 
   const addMatches = [...text.matchAll(/\[ADD:\s*([^\]]+)\]/g)];
@@ -422,6 +433,7 @@ function processCommands(text, data, senderName) {
       minute: parseInt(minStr),
       content,
       date: new Date().toDateString(), // תקף ליום הזה בלבד
+      chatId: originChatId || null, // הקבוצה שממנה ביקשו את התזכורת
       id: Date.now() + Math.random(),
     };
     if (!data.scheduledReminders) data.scheduledReminders = [];
@@ -451,6 +463,7 @@ function processCommands(text, data, senderName) {
       minute: parseInt(m[4]),
       content: m[5].trim(),
       type: "date",
+      chatId: originChatId || null,
       id: Date.now() + Math.random(),
     };
     data.scheduledReminders.push(reminder);
@@ -471,6 +484,7 @@ function processCommands(text, data, senderName) {
       hour: parseInt(m[2]),
       minute: parseInt(m[3]),
       content: m[4].trim(),
+      chatId: originChatId || null,
       id: Date.now() + Math.random(),
     };
     data.weeklyReminders.push(reminder);
@@ -1189,8 +1203,9 @@ ${logText}
       try {
         const data = loadData();
         let changed = false;
-        const sendReminder = async (content, prefix = "⏰ תזכורת!") => {
-          const sent = await currentSock.sendMessage(familyGroupId, { text: `${prefix}\n\n${content}` });
+        const sendReminder = async (content, prefix = "⏰ תזכורת!", targetChatId = null) => {
+          const dest = targetChatId || familyGroupId;
+          const sent = await currentSock.sendMessage(dest, { text: `${prefix}\n\n${content}` });
           if (sent?.key?.id) {
             botSentMessageIds.add(sent.key.id);
             if (botSentMessageIds.size > 50) {
@@ -1207,13 +1222,13 @@ ${logText}
         const toFire = pending.filter(
           (r) => !r.type && r.date === todayStr && nowMin >= r.hour * 60 + r.minute
         );
-        for (const r of toFire) await sendReminder(r.content);
+        for (const r of toFire) await sendReminder(r.content, "⏰ תזכורת!", r.chatId);
 
         // 2. תזכורות לתאריך עתידי (DD/MM) - גם באיחור
         const dateToFire = pending.filter(
           (r) => r.type === "date" && r.day === now.getDate() && r.month === now.getMonth() + 1 && nowMin >= r.hour * 60 + r.minute
         );
-        for (const r of dateToFire) await sendReminder(r.content, "📆 תזכורת!");
+        for (const r of dateToFire) await sendReminder(r.content, "📆 תזכורת!", r.chatId);
 
         if (toFire.length > 0 || dateToFire.length > 0) {
           data.scheduledReminders = pending.filter(
@@ -1231,7 +1246,7 @@ ${logText}
             r.lastFired !== todayStr
         );
         for (const r of weekly) {
-          await sendReminder(r.content, "🔁 תזכורת שבועית!");
+          await sendReminder(r.content, "🔁 תזכורת שבועית!", r.chatId);
           r.lastFired = todayStr;
           changed = true;
         }
@@ -1375,7 +1390,7 @@ ${logText}
         const mentionsBot = [BOT_NAME, "רובי"].some((w) => transcribed.includes(w));
         if (mentionsBot) {
           const reply = await askGemini(transcribed, data, senderName, groupType);
-          const cleanReply = processCommands(reply, data, senderName);
+          const cleanReply = processCommands(reply, data, senderName, chatId);
           pushGroupHistory(data, groupType, `${senderName}: ${transcribed}`, cleanReply);
           saveData(data);
 
@@ -1463,7 +1478,7 @@ ${logText}
     try {
       const data = loadData();
       const reply = await askGemini(text, data, senderName, groupType);
-      const cleanReply = processCommands(reply, data, senderName);
+      const cleanReply = processCommands(reply, data, senderName, chatId);
 
       // עדכון זיכרון השיחה (ההודעה של המשתמש + התשובה של הבוט)
       pushGroupHistory(data, groupType, `${senderName}: ${text}`, cleanReply);
