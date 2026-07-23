@@ -1,5 +1,7 @@
 {
-  "shoppingList": [],
+  "shoppingList": [
+    "שוקולדים קטנים"
+  ],
   "reminders": [],
   "memories": [
     "ענבר בת 17",
@@ -97,7 +99,12 @@
       "text": "קוף, חיילים מרוצים! 🥳\nהוספתי לשלו ולאיתמר 10 נקודות לכל אחד!\nיאללה, שימשיכו לצבור! 💪"
     }
   ],
-  "dailyLog": [],
+  "dailyLog": [
+    {
+      "sender": "שלו",
+      "text": "רובי אתה מתכוון לילה טוב"
+    }
+  ],
   "scheduledReminders": [
     {
       "hour": 0,
@@ -437,6 +444,30 @@
     {
       "sender": "אסף",
       "text": "רובי למה לא היה סיכום יום?"
+    },
+    {
+      "sender": "Shiran",
+      "text": "מישהו יכול לרשום ברשימת קניות שוקולדים קטנים"
+    },
+    {
+      "sender": "אסף",
+      "text": "טופל"
+    },
+    {
+      "sender": "Shiran",
+      "text": "הערב נשב יחד לארוחת ערב:\n\n•פסטה שמנת\n•בורקסים\n•טוסטים"
+    },
+    {
+      "sender": "Shiran",
+      "text": "מי יכול להוסיף לרשימת קניות ⬇️"
+    },
+    {
+      "sender": "Shiran",
+      "text": "הוספתם?"
+    },
+    {
+      "sender": "שלו",
+      "text": "רובי אתה מתכוון לילה טוב"
     }
   ],
   "events": [],
@@ -467,30 +498,22 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Tue Jul 21 2026",
-    "evening": "Tue Jul 21 2026",
-    "morning": "Tue Jul 21 2026",
-    "grandma": "Tue Jul 21 2026",
-    "backup": "Wed Jul 22 2026",
-    "birthdays": "Tue Jul 21 2026",
-    "noon": "Tue Jul 21 2026",
-    "dog13": "Tue Jul 21 2026",
-    "thursdayHype": "Wed Jul 15 2026",
-    "friendsReport": "Tue Jul 21 2026",
+    "dog16": "Wed Jul 22 2026",
+    "evening": "Wed Jul 22 2026",
+    "morning": "Wed Jul 22 2026",
+    "grandma": "Wed Jul 22 2026",
+    "backup": "Thu Jul 23 2026",
+    "birthdays": "Wed Jul 22 2026",
+    "noon": "Wed Jul 22 2026",
+    "dog13": "Wed Jul 22 2026",
+    "thursdayHype": "Wed Jul 22 2026",
+    "friendsReport": "Wed Jul 22 2026",
     "weekly": "Fri Jul 17 2026"
   },
   "friendsLog": [],
   "friendsMuted": false,
   "historyByGroup": {
     "family": [
-      {
-        "role": "user",
-        "text": "אסף: רובי אתמול איתמר הוריד את מקס ועדה כלים תוסיף לו 20 נקודות"
-      },
-      {
-        "role": "bot",
-        "text": "היי אסף! איזה אלוף איתמר! 💪 עדכנתי לו עוד 20 נקודות. כל הכבוד לו!"
-      },
       {
         "role": "user",
         "text": "אסף: רובי עכשיו מה מצב הנקודות ?"
@@ -562,6 +585,14 @@
       {
         "role": "bot",
         "text": "היי אסף! 👋\nלא הגדרנו עדיין סיכום יום קבוע, אז לא שלחתי כזה באופן אוטומטי.\nהיית רוצה שאכין סיכום יום? ואם כן, איזה מידע חשוב לך שיהיה בו? אני כאן כדי לעזור! ✨"
+      },
+      {
+        "role": "user",
+        "text": "שלו: רובי אתה מתכוון לילה טוב"
+      },
+      {
+        "role": "bot",
+        "text": "היי שלו! 👋\nחחח לא, לא התכוונתי לומר \"לילה טוב\" עכשיו. 😊\nכששאלת \"רובי למה\", התכוונתי לשאול למה התכוונת, למה שאלת \"למה\"?\nמה רצית לשאול אותי, מותק? אני פה כדי לעזור! ✨"
       }
     ],
     "grandma": [],
