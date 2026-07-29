@@ -669,6 +669,8 @@ function backupDataToGit() {
 // ====== מצב גלובלי משותף (שורד התחברויות מחדש) ======
 let currentSock = null; // החיבור העדכני לוואטסאפ - מתעדכן בכל התחברות מחדש
 let schedulerStarted = false; // מבטיח שהמתזמן נוצר פעם אחת בלבד
+let reconnectAttempts = 0; // מונה ניסיונות התחברות מחדש (לחישוב השהייה)
+let keepAliveInterval = null; // טיימר "דופק חיים" שמונע ניתוק מחוסר פעילות
 const botSentMessageIds = new Set();
 let familyGroupId = null;
 let grandmaGroupId = null;
@@ -687,6 +689,9 @@ async function startBot() {
     markOnlineOnConnect: false, // כדי שתמשיך לקבל צלילי התראה רגילים בטלפון
     syncFullHistory: false, // לא להוריד את כל היסטוריית ההודעות - מונע לופ ניתוקים בהתחברות
     shouldSyncHistoryMessage: () => false, // מדלג על סנכרון הודעות היסטוריה כבד
+    keepAliveIntervalMs: 20000, // שולח ping כל 20 שניות לשמור על החיבור חי
+    connectTimeoutMs: 60000, // זמן המתנה ארוך יותר לחיבור
+    retryRequestDelayMs: 3000, // השהייה בין ניסיונות חוזרים
   });
   console.log("🔌 סוקט נוצר, מחכה לאירועים...");
 
@@ -701,18 +706,34 @@ async function startBot() {
 
     if (connection === "close") {
       connectionStatus = "התחברות נסגרה, מתחבר מחדש...";
-      const shouldReconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      if (shouldReconnect) {
-        startBot();
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const loggedOut = statusCode === DisconnectReason.loggedOut;
+
+      if (!loggedOut) {
+        // התחברות מחדש אוטומטית ואגרסיבית - עם השהייה קצרה כדי לא להציף
+        reconnectAttempts++;
+        const delay = Math.min(3000 * reconnectAttempts, 30000); // 3ש', 6ש'... עד מקסימום 30ש'
+        console.log(`🔄 החיבור נסגר (קוד ${statusCode}). מתחבר מחדש בעוד ${delay / 1000} שניות... (ניסיון ${reconnectAttempts})`);
+        setTimeout(() => startBot(), delay);
       } else {
-        console.log("❌ נותקת מוואטסאפ. צריך לסרוק QR מחדש.");
+        console.log("❌ נותקת מוואטסאפ (logged out). צריך לסרוק QR מחדש - הרץ: rm -rf auth_info ואז pm2 restart ruby");
       }
     } else if (connection === "open") {
       lastQR = null;
       connectionStatus = "✅ מחובר!";
+      reconnectAttempts = 0; // איפוס מונה הניסיונות אחרי חיבור מוצלח
       console.log("✅ הבוט מחובר לוואטסאפ בהצלחה!");
       findFamilyGroupId();
+
+      // "דופק חיים" - שולח סימן נוכחות כל 30 שניות כדי שוואטסאפ לא ינתק מחוסר פעילות
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
+      keepAliveInterval = setInterval(async () => {
+        try {
+          if (currentSock?.ws?.readyState === 1) {
+            await currentSock.sendPresenceUpdate("available");
+          }
+        } catch (e) { /* מתעלמים - זה רק keep-alive */ }
+      }, 30 * 1000);
     }
   });
 
