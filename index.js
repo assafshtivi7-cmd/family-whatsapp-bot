@@ -685,6 +685,8 @@ async function startBot() {
     logger: pino({ level: "info" }),
     printQRInTerminal: false,
     markOnlineOnConnect: false, // כדי שתמשיך לקבל צלילי התראה רגילים בטלפון
+    syncFullHistory: false, // לא להוריד את כל היסטוריית ההודעות - מונע לופ ניתוקים בהתחברות
+    shouldSyncHistoryMessage: () => false, // מדלג על סנכרון הודעות היסטוריה כבד
   });
   console.log("🔌 סוקט נוצר, מחכה לאירועים...");
 
