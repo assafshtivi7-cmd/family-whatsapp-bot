@@ -205,9 +205,8 @@ function pushGroupHistory(data, groupType, userText, botText) {
 
 // מזהה מי שלח את ההודעה
 function getSenderName(msg, isGroup) {
-  // אם ההודעה נשלחה מהמכשיר עצמו (fromMe) - זה תמיד אסף, כי הבוט מחובר לטלפון שלו
-  if (msg.key.fromMe) return "אסף";
-
+  // הבוט עכשיו על מספר משלו (רובי), אז הודעות של בני המשפחה מזוהות לפי המספר שלהם.
+  // fromMe עכשiו אומר "הבוט עצמו שלח" - לא רלוונטי לזיהוי אנשים.
   const senderJid = isGroup
     ? msg.key.participant || msg.key.remoteJid
     : msg.key.remoteJid;
@@ -694,6 +693,26 @@ async function startBot() {
     retryRequestDelayMs: 3000, // השהייה בין ניסיונות חוזרים
   });
   console.log("🔌 סוקט נוצר, מחכה לאירועים...");
+
+  // ====== חיבור באמצעות קוד טלפון (במקום QR) ======
+  // אם הבוט עדיין לא רשום - נבקש קוד קישור מספרי שאפשר להקליד בוואטסאפ
+  const BOT_PHONE_NUMBER = "972554656817"; // המספר של רובי (בלי + ובלי 0 בהתחלה)
+  if (!sock.authState.creds.registered) {
+    setTimeout(async () => {
+      try {
+        const code = await sock.requestPairingCode(BOT_PHONE_NUMBER);
+        const pretty = code?.match(/.{1,4}/g)?.join("-") || code;
+        console.log("\n\n==================================");
+        console.log(`🔑 קוד הקישור שלך: ${pretty}`);
+        console.log("==================================");
+        console.log("📱 בוואטסאפ של רובי: הגדרות → מכשירים מקושרים → קישור מכשיר →");
+        console.log("   'קשר עם מספר טלפון במקום זאת' → הקלד את הקוד למעלה");
+        console.log("==================================\n\n");
+      } catch (e) {
+        console.error("❌ שגיאה בבקשת קוד קישור:", e);
+      }
+    }, 3000);
+  }
 
   sock.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect, qr } = update;
