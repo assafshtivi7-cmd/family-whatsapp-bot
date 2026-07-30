@@ -686,8 +686,7 @@ async function startBot() {
     logger: pino({ level: "info" }),
     printQRInTerminal: false,
     markOnlineOnConnect: false, // כדי שתמשיך לקבל צלילי התראה רגילים בטלפון
-    syncFullHistory: false, // לא להוריד את כל היסטוריית ההודעות - מונע לופ ניתוקים בהתחברות
-    shouldSyncHistoryMessage: () => false, // מדלג על סנכרון הודעות היסטוריה כבד
+    syncFullHistory: false, // לא להוריד את כל היסטוריית ההודעות (בטוח - לא חוסם מידע חיוני)
     keepAliveIntervalMs: 20000, // שולח ping כל 20 שניות לשמור על החיבור חי
     connectTimeoutMs: 60000, // זמן המתנה ארוך יותר לחיבור
     retryRequestDelayMs: 3000, // השהייה בין ניסיונות חוזרים
