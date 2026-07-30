@@ -99,7 +99,7 @@ const LID_MAP = {
 
 // זיהוי גיבוי לפי מילות מפתח שעשויות להופיע בשם הפרופיל/איש הקשר של כל אחד בקבוצה
 const FAMILY_NAME_VARIANTS = {
-  אסף: ["אסף", "assaf"],
+  אסף: ["אסף", "assaf", "שטווי", "shtivi"],
   שירן: ["שירן", "חיים שלי", "shiran"],
   ענבר: ["ענבר", "inbar"],
   איתמר: ["איתמר", "itamar"],
@@ -1374,7 +1374,8 @@ ${logText}
     }
 
     const senderName = getSenderName(msg, isGroup);
-    console.log(`🔍 DEBUG - pushName: ${msg.pushName} | זוהה כ: ${senderName}`);
+    const debugJid = isGroup ? (msg.key.participant || msg.key.remoteJid) : msg.key.remoteJid;
+    console.log(`🔍 DEBUG - pushName: ${msg.pushName} | JID: ${debugJid} | זוהה כ: ${senderName}`);
 
     // ====== טיפול בתמונה ======
     if (isImage) {
