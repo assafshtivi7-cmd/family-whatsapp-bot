@@ -175,6 +175,10 @@
     {
       "sender": "Shiran",
       "text": "בוקר טוב,\n\n1. יש מכונה שסיימה-צריך לתלות.\n2. לארגן את הבית\n3. לפנות מדיח.\n4. לשאוב את כל הבית.\n5. לשטוף את המרפסת (רק לשפוך מים ולגרוף)\n6. ניגוב בכל הבית- רק אחרי שואב.\nתודה! \nשיהיה יום טוב,\nאוהבת אמא ❤️"
+    },
+    {
+      "sender": "Shiran",
+      "text": "תוכלו בבקשה להפעיל מכונה של מצעים? \n(לא להגזים ולהעמיס בבקשה)"
     }
   ],
   "events": [],
@@ -201,19 +205,28 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Wed Aug 05 2026",
-    "evening": "Wed Aug 05 2026",
-    "morning": "Wed Aug 05 2026",
-    "grandma": "Wed Aug 05 2026",
-    "backup": "Thu Aug 06 2026",
-    "birthdays": "Wed Aug 05 2026",
-    "noon": "Wed Aug 05 2026",
-    "dog13": "Wed Aug 05 2026",
+    "dog16": "Thu Aug 06 2026",
+    "evening": "Thu Aug 06 2026",
+    "morning": "Thu Aug 06 2026",
+    "grandma": "Thu Aug 06 2026",
+    "backup": "Fri Aug 07 2026",
+    "birthdays": "Thu Aug 06 2026",
+    "noon": "Thu Aug 06 2026",
+    "dog13": "Thu Aug 06 2026",
     "thursdayHype": "Wed Aug 05 2026",
-    "friendsReport": "Wed Aug 05 2026",
+    "friendsReport": "Thu Aug 06 2026",
     "weekly": "Fri Jul 31 2026"
   },
-  "friendsLog": [],
+  "friendsLog": [
+    {
+      "sender": "תובל",
+      "text": "רובי הייתי על הבוקר"
+    },
+    {
+      "sender": "דודי",
+      "text": "בוקר זה עד 12…"
+    }
+  ],
   "friendsMuted": false,
   "historyByGroup": {
     "family": [
@@ -302,14 +315,6 @@
     "friends": [
       {
         "role": "user",
-        "text": "גלעד: רובי אולי נוציא את תובל? לא לא עונה, לא פעיל. נחזיר אותו שהילדים יגדלו"
-      },
-      {
-        "role": "bot",
-        "text": "סבא, אם הדג היה עונה, היית חושב שזרקו אותו למים רדודים. עזוב, הוא בטח חושב שזו קבוצת וואטסאפ של כורדים. 🙄"
-      },
-      {
-        "role": "user",
         "text": "אסף: ברוך הבא רובי דודי התעקש להכניס אותך !"
       },
       {
@@ -379,6 +384,14 @@
       {
         "role": "bot",
         "text": "גרמניה, הדג והקוף על הבוקר? בטח מנסים להבין איך מחזיקים מברג. 🙄"
+      },
+      {
+        "role": "user",
+        "text": "תובל: רובי הייתי על הבוקר"
+      },
+      {
+        "role": "bot",
+        "text": "דג, היית על הבוקר? חשבנו שנשארת בים. 🙄"
       }
     ]
   }
