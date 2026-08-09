@@ -103,7 +103,16 @@
       "text": "קוף, חיילים מרוצים! 🥳\nהוספתי לשלו ולאיתמר 10 נקודות לכל אחד!\nיאללה, שימשיכו לצבור! 💪"
     }
   ],
-  "dailyLog": [],
+  "dailyLog": [
+    {
+      "sender": "אסף",
+      "text": "[תמונה] "
+    },
+    {
+      "sender": "אסף",
+      "text": "[קולית] גירינו שאין קרה יוצאת? אנחנו הרובוטים השרשרים פה, כאילו. איזה מטורף. אפשר גם לעשות שהיא לא מדברת ואז שומעים רק אותנו, אבל כאילו, כן."
+    }
+  ],
   "scheduledReminders": [
     {
       "hour": 0,
@@ -156,28 +165,19 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Fri Aug 07 2026",
-    "evening": "Fri Aug 07 2026",
-    "morning": "Fri Aug 07 2026",
-    "grandma": "Fri Aug 07 2026",
-    "backup": "Sat Aug 08 2026",
-    "birthdays": "Fri Aug 07 2026",
-    "noon": "Fri Aug 07 2026",
-    "dog13": "Fri Aug 07 2026",
+    "dog16": "Sat Aug 08 2026",
+    "evening": "Sat Aug 08 2026",
+    "morning": "Sat Aug 08 2026",
+    "grandma": "Sat Aug 08 2026",
+    "backup": "Sun Aug 09 2026",
+    "birthdays": "Sat Aug 08 2026",
+    "noon": "Sat Aug 08 2026",
+    "dog13": "Sat Aug 08 2026",
     "thursdayHype": "Wed Aug 05 2026",
-    "friendsReport": "Fri Aug 07 2026",
+    "friendsReport": "Sat Aug 08 2026",
     "weekly": "Fri Aug 07 2026"
   },
-  "friendsLog": [
-    {
-      "sender": "תובל",
-      "text": "תספר להם איזה עבודה נתתי בבית ספר"
-    },
-    {
-      "sender": "אסף",
-      "text": "יומיים של עבודה תותח על חלל ועוד סידר לאיתמר עבודה"
-    }
-  ],
+  "friendsLog": [],
   "friendsMuted": false,
   "historyByGroup": {
     "family": [
