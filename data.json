@@ -103,16 +103,7 @@
       "text": "קוף, חיילים מרוצים! 🥳\nהוספתי לשלו ולאיתמר 10 נקודות לכל אחד!\nיאללה, שימשיכו לצבור! 💪"
     }
   ],
-  "dailyLog": [
-    {
-      "sender": "אסף",
-      "text": "[תמונה] "
-    },
-    {
-      "sender": "אסף",
-      "text": "[קולית] גירינו שאין קרה יוצאת? אנחנו הרובוטים השרשרים פה, כאילו. איזה מטורף. אפשר גם לעשות שהיא לא מדברת ואז שומעים רק אותנו, אבל כאילו, כן."
-    }
-  ],
+  "dailyLog": [],
   "scheduledReminders": [
     {
       "hour": 0,
@@ -140,7 +131,16 @@
       "id": 1783697276439.815
     }
   ],
-  "weeklyLog": [],
+  "weeklyLog": [
+    {
+      "sender": "שלו",
+      "text": "‏אני וענבר עשינו את זה אתמול"
+    },
+    {
+      "sender": "שלו",
+      "text": "את שנהם"
+    }
+  ],
   "events": [],
   "weeklyReminders": [],
   "trip": [
@@ -165,16 +165,16 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Sat Aug 08 2026",
-    "evening": "Sat Aug 08 2026",
-    "morning": "Sat Aug 08 2026",
-    "grandma": "Sat Aug 08 2026",
-    "backup": "Sun Aug 09 2026",
-    "birthdays": "Sat Aug 08 2026",
-    "noon": "Sat Aug 08 2026",
-    "dog13": "Sat Aug 08 2026",
+    "dog16": "Sun Aug 09 2026",
+    "evening": "Sun Aug 09 2026",
+    "morning": "Sun Aug 09 2026",
+    "grandma": "Sun Aug 09 2026",
+    "backup": "Mon Aug 10 2026",
+    "birthdays": "Sun Aug 09 2026",
+    "noon": "Sun Aug 09 2026",
+    "dog13": "Sun Aug 09 2026",
     "thursdayHype": "Wed Aug 05 2026",
-    "friendsReport": "Sat Aug 08 2026",
+    "friendsReport": "Sun Aug 09 2026",
     "weekly": "Fri Aug 07 2026"
   },
   "friendsLog": [],
