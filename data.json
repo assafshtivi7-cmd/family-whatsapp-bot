@@ -139,6 +139,10 @@
     {
       "sender": "שלו",
       "text": "את שנהם"
+    },
+    {
+      "sender": "Shiran",
+      "text": "מי נמצא עם אבא עכשיו??"
     }
   ],
   "events": [],
@@ -165,16 +169,16 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Mon Aug 10 2026",
-    "evening": "Mon Aug 10 2026",
-    "morning": "Mon Aug 10 2026",
-    "grandma": "Mon Aug 10 2026",
-    "backup": "Tue Aug 11 2026",
-    "birthdays": "Mon Aug 10 2026",
-    "noon": "Mon Aug 10 2026",
-    "dog13": "Mon Aug 10 2026",
+    "dog16": "Tue Aug 11 2026",
+    "evening": "Tue Aug 11 2026",
+    "morning": "Tue Aug 11 2026",
+    "grandma": "Tue Aug 11 2026",
+    "backup": "Wed Aug 12 2026",
+    "birthdays": "Tue Aug 11 2026",
+    "noon": "Tue Aug 11 2026",
+    "dog13": "Tue Aug 11 2026",
     "thursdayHype": "Wed Aug 05 2026",
-    "friendsReport": "Mon Aug 10 2026",
+    "friendsReport": "Tue Aug 11 2026",
     "weekly": "Fri Aug 07 2026"
   },
   "friendsLog": [],
