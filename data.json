@@ -143,6 +143,14 @@
     {
       "sender": "Shiran",
       "text": "מי נמצא עם אבא עכשיו??"
+    },
+    {
+      "sender": "אסף",
+      "text": "רובי בוקר טוב כמה זמן נשאר לתאילנד ?"
+    },
+    {
+      "sender": "שלו",
+      "text": "https://vt.tiktok.com/ZS4wkLAgc/"
     }
   ],
   "events": [],
@@ -169,30 +177,22 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Tue Aug 11 2026",
-    "evening": "Tue Aug 11 2026",
-    "morning": "Tue Aug 11 2026",
-    "grandma": "Tue Aug 11 2026",
-    "backup": "Wed Aug 12 2026",
-    "birthdays": "Tue Aug 11 2026",
-    "noon": "Tue Aug 11 2026",
-    "dog13": "Tue Aug 11 2026",
-    "thursdayHype": "Wed Aug 05 2026",
-    "friendsReport": "Tue Aug 11 2026",
+    "dog16": "Wed Aug 12 2026",
+    "evening": "Wed Aug 12 2026",
+    "morning": "Wed Aug 12 2026",
+    "grandma": "Wed Aug 12 2026",
+    "backup": "Thu Aug 13 2026",
+    "birthdays": "Wed Aug 12 2026",
+    "noon": "Wed Aug 12 2026",
+    "dog13": "Wed Aug 12 2026",
+    "thursdayHype": "Wed Aug 12 2026",
+    "friendsReport": "Wed Aug 12 2026",
     "weekly": "Fri Aug 07 2026"
   },
   "friendsLog": [],
   "friendsMuted": false,
   "historyByGroup": {
     "family": [
-      {
-        "role": "user",
-        "text": "אסף: רובי אנחנו גרים בחדרה תרשום אצלך"
-      },
-      {
-        "role": "bot",
-        "text": "היי אסף! 👋\nבטח, רשמתי! מעכשיו אני זוכר שאתם גרים בחדרה. \n\nיש משהו נוסף שאוכל לעזור בו? 😊"
-      },
       {
         "role": "user",
         "text": "שלו: רובי מה קורה"
@@ -264,18 +264,18 @@
       {
         "role": "bot",
         "text": "היי שלו! 👋\nהכל מצוין אצלי, תודה ששאלת! אני פה מוכן לכל הרפתקה! 😊\nנשארו לך עוד 102 ימים בדיוק עד יום ההולדת שלך! 🥳🎂\n\nמה שלומך? צריך עזרה במשהו? ✨"
+      },
+      {
+        "role": "user",
+        "text": "אסף: רובי בוקר טוב כמה זמן נשאר לתאילנד ?"
+      },
+      {
+        "role": "bot",
+        "text": "בוקר טוב אסף! 👋\nנשארו לנו 23 ימים בדיוק עד הטיסה לתאילנד! 🥳 תתחיל כבר לחלום על השמש והים! ☀️🌴"
       }
     ],
     "grandma": [],
     "friends": [
-      {
-        "role": "user",
-        "text": "אסף: ברוך הבא רובי דודי התעקש להכניס אותך !"
-      },
-      {
-        "role": "bot",
-        "text": "ברוך הבא אסף, שמח שהגעתי. דודי תמיד מתעקש על דברים, העיקר שיש לו עם מי לדבר עכשיו על רמת השרון. 🤔"
-      },
       {
         "role": "user",
         "text": "אסף: [שלח תמונה] רובי תגיד המוצר הזה באמת מנקה או מעביר לכלוך ממקום למקום ?"
@@ -347,6 +347,14 @@
       {
         "role": "bot",
         "text": "דג, היית על הבוקר? חשבנו שנשארת בים. 🙄"
+      },
+      {
+        "role": "user",
+        "text": "תובל: רובי בוא נדבר על מפגש בספטמבר"
+      },
+      {
+        "role": "bot",
+        "text": "דג, ספטמבר? תגיד, יש לך כבר יום פנוי בין הדגים לים? 🙄"
       }
     ]
   }
