@@ -177,19 +177,24 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Wed Aug 12 2026",
-    "evening": "Wed Aug 12 2026",
-    "morning": "Wed Aug 12 2026",
-    "grandma": "Wed Aug 12 2026",
-    "backup": "Thu Aug 13 2026",
-    "birthdays": "Wed Aug 12 2026",
-    "noon": "Wed Aug 12 2026",
-    "dog13": "Wed Aug 12 2026",
+    "dog16": "Thu Aug 13 2026",
+    "evening": "Thu Aug 13 2026",
+    "morning": "Thu Aug 13 2026",
+    "grandma": "Thu Aug 13 2026",
+    "backup": "Fri Aug 14 2026",
+    "birthdays": "Thu Aug 13 2026",
+    "noon": "Thu Aug 13 2026",
+    "dog13": "Thu Aug 13 2026",
     "thursdayHype": "Wed Aug 12 2026",
-    "friendsReport": "Wed Aug 12 2026",
+    "friendsReport": "Thu Aug 13 2026",
     "weekly": "Fri Aug 07 2026"
   },
-  "friendsLog": [],
+  "friendsLog": [
+    {
+      "sender": "דודי",
+      "text": "רובי\nאיפה הקוף?\nשמעתי יצא לחופשה"
+    }
+  ],
   "friendsMuted": false,
   "historyByGroup": {
     "family": [
@@ -278,14 +283,6 @@
     "friends": [
       {
         "role": "user",
-        "text": "אסף: [שלח תמונה] רובי תגיד המוצר הזה באמת מנקה או מעביר לכלוך ממקום למקום ?"
-      },
-      {
-        "role": "bot",
-        "text": "היי אסף,\nלפי התיאור, המוצר הזה מיועד לנקות ביסודיות ולא רק להעביר לכלוך.\nיש לו:\n*   **מנגנוני ריסוס דו-כיווניים** ל\"ניקוי אחיד ויסודי\".\n*   **עוצמת שאיבה אוטומטית** של 2-2.8KPA, מה שאומר שהוא מושך את הלכלוך ולא רק מורח אותו.\n*   **מצבי ניקוי חכמים**, כולל \"ניקוי כפול\" (שמעיד על פעולה יסודית יותר ממעבר אחד).\n\nאז כן, הוא אמור לנקות ביעילות."
-      },
-      {
-        "role": "user",
         "text": "דודי: רובי שים לך תמונה בוואטסאפ"
       },
       {
@@ -355,6 +352,14 @@
       {
         "role": "bot",
         "text": "דג, ספטמבר? תגיד, יש לך כבר יום פנוי בין הדגים לים? 🙄"
+      },
+      {
+        "role": "user",
+        "text": "דודי: רובי\nאיפה הקוף?\nשמעתי יצא לחופשה"
+      },
+      {
+        "role": "bot",
+        "text": "גרמניה, הקוף יצא לחופשה? אולי קפץ למאדים, תבדוק לו את העף. 🙄"
       }
     ]
   }
