@@ -103,12 +103,7 @@
       "text": "קוף, חיילים מרוצים! 🥳\nהוספתי לשלו ולאיתמר 10 נקודות לכל אחד!\nיאללה, שימשיכו לצבור! 💪"
     }
   ],
-  "dailyLog": [
-    {
-      "sender": "שלו",
-      "text": "רובי למה אתה קורה לי אלוף הפחים זה פעם אחרונה!!!!😡😤"
-    }
-  ],
+  "dailyLog": [],
   "scheduledReminders": [
     {
       "hour": 0,
@@ -184,6 +179,58 @@
     {
       "sender": "שלו",
       "text": "רובי למה אתה קורה לי אלוף הפחים זה פעם אחרונה!!!!😡😤"
+    },
+    {
+      "sender": "Shiran",
+      "text": "בוקר טוב\n1. *להרים הכל בכל הבית ולבקש ממני להפעיל שואב*\n2. לנקות אבק.\n3. לשטוף את המרפסת מים ולגרוף- לכלוכים, ענפים קטנים לזרוק לפח.\n4. לסדר את כל הבית\nכולל סלון וחדרים.\n5. להרים הכל ולבקש ממני להפעיל שואב"
+    },
+    {
+      "sender": "שלו",
+      "text": "אני 4 ו1"
+    },
+    {
+      "sender": "שלו",
+      "text": "https://vt.tiktok.com/ZSVrhxYbL/"
+    },
+    {
+      "sender": "Shiran",
+      "text": ".."
+    },
+    {
+      "sender": "שלו",
+      "text": "@136979509456959 לא קם"
+    },
+    {
+      "sender": "Shiran",
+      "text": "מי שוטף את המרפסת??"
+    },
+    {
+      "sender": "Shiran",
+      "text": "העברתם למייבש??"
+    },
+    {
+      "sender": "אסף",
+      "text": "כן"
+    },
+    {
+      "sender": "Shiran",
+      "text": "מקווה שסיימתם את כל המטלות"
+    },
+    {
+      "sender": "אסף",
+      "text": "הם לא מפסיקים לריב פה"
+    },
+    {
+      "sender": "אסף",
+      "text": "וצורחים"
+    },
+    {
+      "sender": "Shiran",
+      "text": "מי??"
+    },
+    {
+      "sender": "אסף",
+      "text": "הבנים הם לא מקשיבים לי כבר אין לי מה לעשות"
     }
   ],
   "events": [],
@@ -210,16 +257,16 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Mon Aug 17 2026",
-    "evening": "Mon Aug 17 2026",
-    "morning": "Mon Aug 17 2026",
-    "grandma": "Mon Aug 17 2026",
-    "backup": "Tue Aug 18 2026",
-    "birthdays": "Mon Aug 17 2026",
-    "noon": "Mon Aug 17 2026",
-    "dog13": "Mon Aug 17 2026",
+    "dog16": "Tue Aug 18 2026",
+    "evening": "Tue Aug 18 2026",
+    "morning": "Tue Aug 18 2026",
+    "grandma": "Tue Aug 18 2026",
+    "backup": "Wed Aug 19 2026",
+    "birthdays": "Tue Aug 18 2026",
+    "noon": "Tue Aug 18 2026",
+    "dog13": "Tue Aug 18 2026",
     "thursdayHype": "Wed Aug 12 2026",
-    "friendsReport": "Mon Aug 17 2026",
+    "friendsReport": "Tue Aug 18 2026",
     "weekly": "Fri Aug 14 2026"
   },
   "friendsLog": [
