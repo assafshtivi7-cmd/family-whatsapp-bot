@@ -103,16 +103,7 @@
       "text": "קוף, חיילים מרוצים! 🥳\nהוספתי לשלו ולאיתמר 10 נקודות לכל אחד!\nיאללה, שימשיכו לצבור! 💪"
     }
   ],
-  "dailyLog": [
-    {
-      "sender": "איתמר",
-      "text": "שלו הבאתי לך שתי מדבקות"
-    },
-    {
-      "sender": "איתמר",
-      "text": "גם לך הבאתי רובי אל תדאג"
-    }
-  ],
+  "dailyLog": [],
   "scheduledReminders": [
     {
       "hour": 0,
@@ -264,6 +255,10 @@
     {
       "sender": "איתמר",
       "text": "גם לך הבאתי רובי אל תדאג"
+    },
+    {
+      "sender": "Shiran",
+      "text": "היי לכולם,\n\nהיום כשאחזור מהעבודה נלך לקנות חולצות לבית הספר\n@136979509456959 \n@161993499623446 \n@167731525611637"
     }
   ],
   "events": [],
@@ -290,16 +285,16 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Sat Aug 22 2026",
-    "evening": "Sat Aug 22 2026",
-    "morning": "Sat Aug 22 2026",
-    "grandma": "Sat Aug 22 2026",
-    "backup": "Sun Aug 23 2026",
-    "birthdays": "Sat Aug 22 2026",
-    "noon": "Sat Aug 22 2026",
-    "dog13": "Sat Aug 22 2026",
+    "dog16": "Sun Aug 23 2026",
+    "evening": "Sun Aug 23 2026",
+    "morning": "Sun Aug 23 2026",
+    "grandma": "Sun Aug 23 2026",
+    "backup": "Mon Aug 24 2026",
+    "birthdays": "Sun Aug 23 2026",
+    "noon": "Sun Aug 23 2026",
+    "dog13": "Sun Aug 23 2026",
     "thursdayHype": "Wed Aug 12 2026",
-    "friendsReport": "Sat Aug 22 2026",
+    "friendsReport": "Sun Aug 23 2026",
     "weekly": "Fri Aug 21 2026"
   },
   "friendsLog": [
@@ -438,6 +433,30 @@
     {
       "sender": "תובל",
       "text": "באילת אני בחוץ"
+    },
+    {
+      "sender": "גלעד",
+      "text": "וואלה שטיוי אם אתה מרצה קצת ומגדל זקן אתה קופי עידן רייכל"
+    },
+    {
+      "sender": "דודי",
+      "text": "הוא גם אוהב אתיופים"
+    },
+    {
+      "sender": "אסף",
+      "text": "ואתה אוהב מה שיש להם בתחתונים 😂"
+    },
+    {
+      "sender": "דודי",
+      "text": "מענין אם רובי מבין את הדיבור הזה?"
+    },
+    {
+      "sender": "אסף",
+      "text": "הוא ישן הכנסתי אותו למצב שינה"
+    },
+    {
+      "sender": "דודי",
+      "text": "חחחח"
     }
   ],
   "friendsMuted": true,
