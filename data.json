@@ -259,6 +259,10 @@
     {
       "sender": "Shiran",
       "text": "היי לכולם,\n\nהיום כשאחזור מהעבודה נלך לקנות חולצות לבית הספר\n@136979509456959 \n@161993499623446 \n@167731525611637"
+    },
+    {
+      "sender": "Shiran",
+      "text": "אהבתי את התזכורת רובי.\nסוף סוף הודעה מעניינת"
     }
   ],
   "events": [],
@@ -285,16 +289,16 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Sun Aug 23 2026",
-    "evening": "Sun Aug 23 2026",
-    "morning": "Sun Aug 23 2026",
-    "grandma": "Sun Aug 23 2026",
-    "backup": "Mon Aug 24 2026",
-    "birthdays": "Sun Aug 23 2026",
-    "noon": "Sun Aug 23 2026",
-    "dog13": "Sun Aug 23 2026",
+    "dog16": "Mon Aug 24 2026",
+    "evening": "Mon Aug 24 2026",
+    "morning": "Mon Aug 24 2026",
+    "grandma": "Mon Aug 24 2026",
+    "backup": "Tue Aug 25 2026",
+    "birthdays": "Mon Aug 24 2026",
+    "noon": "Mon Aug 24 2026",
+    "dog13": "Mon Aug 24 2026",
     "thursdayHype": "Wed Aug 12 2026",
-    "friendsReport": "Sun Aug 23 2026",
+    "friendsReport": "Mon Aug 24 2026",
     "weekly": "Fri Aug 21 2026"
   },
   "friendsLog": [
@@ -464,14 +468,6 @@
     "family": [
       {
         "role": "user",
-        "text": "אסף: רובי תזכור שהכלב שלנו זה מקס"
-      },
-      {
-        "role": "bot",
-        "text": "היי אסף! 👋\nבטח, רשמתי! מעכשיו אני זוכר שהכלב שלכם הוא מקס. 🐶\nיש משהו נוסף שאוכל לעזור בו? 😊"
-      },
-      {
-        "role": "user",
         "text": "שלו: רובי מה קורה"
       },
       {
@@ -541,6 +537,14 @@
       {
         "role": "bot",
         "text": "היי איתמר! איזה מלך אתה! 🤩\nאני ממש מעריך את המחשבה שלך, אבל אני עוזר AI, אז אני לא ממש צריך שוקולדים (למרות שאני בטוח שהם טעימים!).\nתודה רבה! 😋"
+      },
+      {
+        "role": "user",
+        "text": "Shiran: אהבתי את התזכורת רובי.\nסוף סוף הודעה מעניינת"
+      },
+      {
+        "role": "bot",
+        "text": "היי שירן המלכה! 👑 איזה כיף לשמוע שאהבת! 🥰 אני פה בדיוק בשביל זה, לשמח ולעזור. שמחה שזה מעניין אותך! ✨"
       }
     ],
     "grandma": [],
