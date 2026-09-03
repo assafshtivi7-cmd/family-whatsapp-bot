@@ -103,12 +103,7 @@
       "text": "קוף, חיילים מרוצים! 🥳\nהוספתי לשלו ולאיתמר 10 נקודות לכל אחד!\nיאללה, שימשיכו לצבור! 💪"
     }
   ],
-  "dailyLog": [
-    {
-      "sender": "איתמר",
-      "text": "איזה משחק קופסה מספיק לי בית ספר"
-    }
-  ],
+  "dailyLog": [],
   "scheduledReminders": [
     {
       "hour": 0,
@@ -187,16 +182,16 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Tue Sep 01 2026",
-    "evening": "Tue Sep 01 2026",
-    "morning": "Tue Sep 01 2026",
-    "grandma": "Tue Sep 01 2026",
-    "backup": "Wed Sep 02 2026",
-    "birthdays": "Tue Sep 01 2026",
-    "noon": "Tue Sep 01 2026",
-    "dog13": "Tue Sep 01 2026",
-    "thursdayHype": "Wed Aug 26 2026",
-    "friendsReport": "Tue Sep 01 2026",
+    "dog16": "Wed Sep 02 2026",
+    "evening": "Wed Sep 02 2026",
+    "morning": "Wed Sep 02 2026",
+    "grandma": "Wed Sep 02 2026",
+    "backup": "Thu Sep 03 2026",
+    "birthdays": "Wed Sep 02 2026",
+    "noon": "Wed Sep 02 2026",
+    "dog13": "Wed Sep 02 2026",
+    "thursdayHype": "Wed Sep 02 2026",
+    "friendsReport": "Wed Sep 02 2026",
     "weekly": "Fri Aug 28 2026"
   },
   "friendsLog": [
@@ -539,6 +534,14 @@
     {
       "sender": "דודי",
       "text": "אז תרגיעו, גלעד גמר אותי"
+    },
+    {
+      "sender": "גלעד",
+      "text": "ג'ילי החדשה, גיסי קיבל את הרכב לפני 3 שבועות, טס ל 5 ימים, חזר והלך המצבר. אמרו לו שזה עלול לקרות שוב כאשר הרכב לא מונע מספר ימים. סיני..."
+    },
+    {
+      "sender": "אסף",
+      "text": "אסור לקנות רכב סיני נקודה"
     }
   ],
   "friendsMuted": true,
