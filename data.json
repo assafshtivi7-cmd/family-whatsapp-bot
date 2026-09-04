@@ -155,6 +155,26 @@
     {
       "sender": "איתמר",
       "text": "איזה משחק קופסה מספיק לי בית ספר"
+    },
+    {
+      "sender": "אסף",
+      "text": "לי לא משנה מה שכולם רוצים"
+    },
+    {
+      "sender": "שלו",
+      "text": "‏כל כך חיכיתי לתאילנד"
+    },
+    {
+      "sender": "אסף",
+      "text": "הורדתי את מקס באחד"
+    },
+    {
+      "sender": "Shiran",
+      "text": "לפתיחת תא כפפות לחץ על המיקרופון ובקש:\nOpen gloves"
+    },
+    {
+      "sender": "Shiran",
+      "text": "ננסה אחכ"
     }
   ],
   "events": [],
@@ -182,16 +202,16 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Wed Sep 02 2026",
-    "evening": "Wed Sep 02 2026",
-    "morning": "Wed Sep 02 2026",
-    "grandma": "Wed Sep 02 2026",
-    "backup": "Thu Sep 03 2026",
-    "birthdays": "Wed Sep 02 2026",
-    "noon": "Wed Sep 02 2026",
-    "dog13": "Wed Sep 02 2026",
+    "dog16": "Thu Sep 03 2026",
+    "evening": "Thu Sep 03 2026",
+    "morning": "Thu Sep 03 2026",
+    "grandma": "Thu Sep 03 2026",
+    "backup": "Fri Sep 04 2026",
+    "birthdays": "Thu Sep 03 2026",
+    "noon": "Thu Sep 03 2026",
+    "dog13": "Thu Sep 03 2026",
     "thursdayHype": "Wed Sep 02 2026",
-    "friendsReport": "Wed Sep 02 2026",
+    "friendsReport": "Thu Sep 03 2026",
     "weekly": "Fri Aug 28 2026"
   },
   "friendsLog": [
