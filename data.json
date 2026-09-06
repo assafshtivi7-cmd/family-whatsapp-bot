@@ -131,7 +131,20 @@
       "id": 1783697276439.815
     }
   ],
-  "weeklyLog": [],
+  "weeklyLog": [
+    {
+      "sender": "אסף",
+      "text": "📍 פטאיה · 6.9 (יום ראשון)\n🏨 Grande Centre Point Space Pattaya\n\n• בוקר — Columbia Pictures Aquaverse — פארק מים\n   10:00-18:00 · 140₪ למבוגר.\n   https://www.google.com/maps/search/?api=1&query=Columbia%20Pictures%20Aquaverse%20Pattaya\n• ערב — Thepprasit Night Market\n   כ־300 מטר מרחוב סוקומוויט. 17:00-22:00.\n   https://www.google.com/maps/search/?api=1&query=Thepprasit%20Night%20Market%20Pattaya"
+    },
+    {
+      "sender": "אסף",
+      "text": "זה הלוז למחר זורם לכם ?"
+    },
+    {
+      "sender": "איתמר",
+      "text": "כן"
+    }
+  ],
   "events": [],
   "weeklyReminders": [],
   "trip": [
@@ -157,16 +170,16 @@
   "recipes": [],
   "activePoll": null,
   "sentLog": {
-    "dog16": "Fri Sep 04 2026",
-    "evening": "Fri Sep 04 2026",
-    "morning": "Fri Sep 04 2026",
-    "grandma": "Fri Sep 04 2026",
-    "backup": "Sat Sep 05 2026",
-    "birthdays": "Fri Sep 04 2026",
-    "noon": "Fri Sep 04 2026",
-    "dog13": "Fri Sep 04 2026",
+    "dog16": "Sat Sep 05 2026",
+    "evening": "Sat Sep 05 2026",
+    "morning": "Sat Sep 05 2026",
+    "grandma": "Sat Sep 05 2026",
+    "backup": "Sun Sep 06 2026",
+    "birthdays": "Sat Sep 05 2026",
+    "noon": "Sat Sep 05 2026",
+    "dog13": "Sat Sep 05 2026",
     "thursdayHype": "Wed Sep 02 2026",
-    "friendsReport": "Fri Sep 04 2026",
+    "friendsReport": "Sat Sep 05 2026",
     "weekly": "Fri Sep 04 2026"
   },
   "friendsLog": [
